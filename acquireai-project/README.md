@@ -84,6 +84,49 @@ Health check.
 
 Returns current events from live odds if configured, otherwise mock events.
 
+### `GET /api/odds/navigation`
+
+Returns sports, categories, and tournaments from Kingmakers prematch navigation.
+
+Query params (optional):
+- `locale` (default `en`)
+- `scheduleTimeFrame` (default `4`)
+- `contentLanguage` (default `en`)
+- `discriminationId` (default `19010101`)
+
+### `GET /api/odds/snapshot`
+
+Returns sports -> market types -> odds using Kingmakers prematch APIs.
+This is optimized with bounded concurrency and in-memory cache.
+
+Useful query params:
+- `includeOdds` (`true`/`false`, default `true`)
+- `areaId` (default `1572`)
+- `dateFilterType` (default `1`)
+- `dateFilterRange` (default `24`)
+- `pageSize` (default `50`)
+- `maxPagesPerMarketType` (default `20`)
+- `sportsConcurrency` (default `4`)
+- `marketTypesConcurrency` (default `4`)
+- `cacheTtlMs` (default `60000`)
+- `maxSports` (default `0`, means all)
+
+### Kingmakers in `/api/query`
+
+To make recommendation queries use Kingmakers odds instead of The Odds API/mock, set in backend `.env`:
+
+```bash
+KINGMAKERS_ENABLE_QUERY_ODDS=true
+```
+
+Optional tuning for query performance:
+- `KINGMAKERS_QUERY_MAX_SPORTS` (default `2`)
+- `KINGMAKERS_QUERY_MAX_PAGES_PER_MARKET_TYPE` (default `3`)
+- `KINGMAKERS_QUERY_PAGE_SIZE` (default `30`)
+- `KINGMAKERS_QUERY_SPORTS_CONCURRENCY` (default `2`)
+- `KINGMAKERS_QUERY_MARKET_TYPES_CONCURRENCY` (default `2`)
+- `KINGMAKERS_QUERY_CACHE_TTL_MS` (default `60000`)
+
 ### `POST /api/query`
 
 Request:

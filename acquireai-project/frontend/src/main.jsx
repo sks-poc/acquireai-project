@@ -2,6 +2,21 @@ import React, { useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 
+function toText(value) {
+  if (value == null) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "number") return String(value);
+  return JSON.stringify(value, null, 2);
+}
+
+function toStringList(value) {
+  if (!value) return [];
+  if (Array.isArray(value)) {
+    return value.map((item) => (typeof item === "string" ? item : JSON.stringify(item)));
+  }
+  return [toText(value)];
+}
+
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8080";
 
 const examples = [
@@ -89,45 +104,64 @@ function App() {
 
       {response && (
         <section className="result card">
-          <div className="badge">Risk: {response.riskLevel}</div>
+          <div className="badge">Risk: {toText(response.riskLevel)}</div>
           <h2>Recommendation</h2>
-          <p>{response.recommendation}</p>
+          <p>{toText(response.recommendation)}</p>
 
           <h3>Rationale</h3>
-          <p>{response.rationale}</p>
+          <p>{toText(response.rationale)}</p>
 
           {response.oddsUsed?.length > 0 && (
             <>
               <h3>Odds used</h3>
               <ul>
-                {response.oddsUsed.map((odd, index) => (
-                  <li key={`${odd.event}-${index}`}>
-                    <strong>{odd.event}</strong> — {odd.market}: {odd.selection} @ {odd.odds} ({odd.impliedProbability}% implied)
-                  </li>
-                ))}
+                {response.oddsUsed.map((odd, index) => {
+                  if (typeof odd === "string") return <li key={index}>{odd}</li>;
+                  const event = toText(odd.event || odd.eventName || odd.bet || "");
+                  const market = toText(odd.market || odd.marketName || "");
+                  const selection = toText(odd.selection || odd.selectionName || "");
+                  const odds = toText(odd.odds || odd.odd || "");
+                  const implied = toText(odd.impliedProbability || "");
+                  return (
+                    <li key={`${event}-${index}`}>
+                      <strong>{event}</strong>
+                      {market ? ` — ${market}` : ""}
+                      {selection ? `: ${selection}` : ""}
+                      {odds ? ` @ ${odds}` : ""}
+                      {implied ? ` (${implied}% implied)` : ""}
+                    </li>
+                  );
+                })}
               </ul>
             </>
           )}
 
-          {response.warnings?.length > 0 && (
+          {toStringList(response.warnings).length > 0 && (
             <div className="warning">
               <h3>Warnings</h3>
               <ul>
-                {response.warnings.map((warning) => (
-                  <li key={warning}>{warning}</li>
+                {toStringList(response.warnings).map((warning, i) => (
+                  <li key={i}>{warning}</li>
                 ))}
               </ul>
             </div>
           )}
 
           <div className="notice">
-            <strong>Responsible gambling:</strong> {response.responsibleGamblingNotice}
+            <strong>Responsible gambling:</strong> {toText(response.responsibleGamblingNotice)}
           </div>
 
           {response.meta && (
             <p className="meta">
               Model: {response.meta.model} · Odds source: {response.meta.oddsSource} · Latency: {response.meta.latencyMs}ms
             </p>
+          )}
+
+          {response.debug?.llmInput && (
+            <details className="debug">
+              <summary>GPT input payload (debug)</summary>
+              <pre>{JSON.stringify(response.debug.llmInput, null, 2)}</pre>
+            </details>
           )}
         </section>
       )}

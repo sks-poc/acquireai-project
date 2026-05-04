@@ -24,4 +24,7 @@ button:disabled { opacity: .6; cursor: not-allowed; }
 .notice { background: #edf7ff; border: 1px solid #c7e6ff; border-radius: 16px; padding: 14px 16px; margin-top: 16px; }
 .error { background: #ffecec; border: 1px solid #ffbaba; border-radius: 16px; padding: 16px; color: #a40000; margin-bottom: 16px; }
 .meta { color: #657389; font-size: 13px; margin-top: 18px; }
+.debug { margin-top: 16px; border: 1px solid #dfe7f3; border-radius: 12px; background: #f9fbff; }
+.debug summary { cursor: pointer; font-weight: 700; padding: 12px 14px; color: #1b2a4a; }
+.debug pre { margin: 0; padding: 12px 14px 14px; border-top: 1px solid #e4ebf7; background: #f3f7ff; font-size: 12px; line-height: 1.4; overflow: auto; }
 @media (max-width: 720px) { .controls { grid-template-columns: 1fr; } }

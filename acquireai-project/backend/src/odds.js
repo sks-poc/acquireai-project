@@ -1,6 +1,10 @@
 import { fileURLToPath } from "url";
 import path from "path";
 import fs from "fs";
+import { buildKingmakersOddsContext } from "./kingmakers.js";
+
+const KINGMAKERS_NAVIGATION_URL =
+  "https://bff-gateway-int.kingmakers-account.workers.dev/api/sportsbook/v1/prematch/navigation";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -15,6 +19,53 @@ function readMockEvents() {
 export function impliedProbability(decimalOdds) {
   if (!decimalOdds || Number(decimalOdds) <= 0) return null;
   return Number(((1 / Number(decimalOdds)) * 100).toFixed(2));
+}
+
+function toPositiveInt(value, fallback) {
+  const parsed = Number.parseInt(String(value ?? ""), 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallback;
+  }
+  return parsed;
+}
+
+export async function fetchPrematchNavigation(options = {}) {
+  const locale = options.locale || process.env.KINGMAKERS_LOCALE || "en";
+  const contentLanguage =
+    options.contentLanguage || process.env.KINGMAKERS_CONTENT_LANGUAGE || locale;
+  const scheduleTimeFrame = toPositiveInt(
+    options.scheduleTimeFrame || process.env.KINGMAKERS_SCHEDULE_TIME_FRAME,
+    4
+  );
+  const discriminationId =
+    options.discriminationId || process.env.KINGMAKERS_DISCRIMINATION_ID || "19010101";
+
+  const url = new URL(KINGMAKERS_NAVIGATION_URL);
+  url.searchParams.set("locale", locale);
+  url.searchParams.set("scheduleTimeFrame", String(scheduleTimeFrame));
+
+  const response = await fetch(url, {
+    headers: {
+      accept: "application/json",
+      "content-language": contentLanguage,
+      "discrimination-id": discriminationId
+    }
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Navigation request failed with status ${response.status}: ${body}`);
+  }
+
+  const payload = await response.json();
+  const sports = payload?.data?.sports || [];
+
+  return {
+    source: "kingmakers",
+    fetchedAt: new Date().toISOString(),
+    totalSports: sports.length,
+    data: payload.data || { sports: [] }
+  };
 }
 
 function normalizeOddsApiEvent(event) {
@@ -94,6 +145,24 @@ export async function getEvents() {
 }
 
 export async function buildOddsContext(userQuery, limit = 5) {
+  const envLimit = Number.parseInt(String(process.env.KINGMAKERS_QUERY_CONTEXT_EVENTS || ""), 10);
+  const effectiveLimit = Number.isFinite(envLimit) && envLimit > 0 ? envLimit : limit;
+
+  const useKingmakersForQuery = ["1", "true", "yes", "on"].includes(
+    String(process.env.KINGMAKERS_ENABLE_QUERY_ODDS || "").trim().toLowerCase()
+  );
+
+  if (useKingmakersForQuery) {
+    try {
+      const kingmakersContext = await buildKingmakersOddsContext(userQuery, effectiveLimit);
+      if (kingmakersContext.events.length > 0) {
+        return kingmakersContext;
+      }
+    } catch (error) {
+      console.warn("Kingmakers query odds failed, using fallback:", error.message);
+    }
+  }
+
   const { events, source } = await getEvents();
   const q = String(userQuery || "").toLowerCase();
 
@@ -117,6 +186,6 @@ export async function buildOddsContext(userQuery, limit = 5) {
 
   return {
     source,
-    events: (matched.length > 0 ? matched : events).slice(0, limit)
+    events: (matched.length > 0 ? matched : events).slice(0, effectiveLimit)
   };
 }

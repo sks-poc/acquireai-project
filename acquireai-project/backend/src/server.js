@@ -2,7 +2,8 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import { buildOddsContext, getEvents } from "./odds.js";
-import { fallbackRecommendation, generateRecommendation } from "./llm.js";
+import { fetchAllSportsMarketTypesAndOdds, fetchPrematchNavigationRaw } from "./kingmakers.js";
+import { buildLlmInput, fallbackRecommendation, generateRecommendation } from "./llm.js";
 import { logInteraction } from "./logger.js";
 
 const app = express();
@@ -24,6 +25,51 @@ app.get("/api/events", async (req, res) => {
   }
 });
 
+app.get("/api/odds/navigation", async (req, res) => {
+  try {
+    const result = await fetchPrematchNavigationRaw({
+      locale: req.query.locale,
+      scheduleTimeFrame: req.query.scheduleTimeFrame,
+      contentLanguage: req.query.contentLanguage,
+      discriminationId: req.query.discriminationId
+    });
+    res.json({
+      source: "kingmakers",
+      fetchedAt: new Date().toISOString(),
+      totalSports: result.sports.length,
+      data: result.payload?.data || { sports: [] }
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get("/api/odds/snapshot", async (req, res) => {
+  try {
+    const result = await fetchAllSportsMarketTypesAndOdds({
+      baseUrl: req.query.baseUrl,
+      locale: req.query.locale,
+      contentLanguage: req.query.contentLanguage,
+      discriminationId: req.query.discriminationId,
+      scheduleTimeFrame: req.query.scheduleTimeFrame,
+      areaId: req.query.areaId,
+      dateFilterType: req.query.dateFilterType,
+      dateFilterRange: req.query.dateFilterRange,
+      pageSize: req.query.pageSize,
+      maxPagesPerMarketType: req.query.maxPagesPerMarketType,
+      includeOdds: req.query.includeOdds,
+      sportsConcurrency: req.query.sportsConcurrency,
+      marketTypesConcurrency: req.query.marketTypesConcurrency,
+      cacheTtlMs: req.query.cacheTtlMs,
+      maxSports: req.query.maxSports
+    });
+
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.post("/api/query", async (req, res) => {
   const startedAt = Date.now();
 
@@ -35,6 +81,12 @@ app.post("/api/query", async (req, res) => {
     }
 
     const oddsContext = await buildOddsContext(query);
+    const llmInput = buildLlmInput({
+      userQuery: query,
+      userContext: context,
+      oddsContext
+    });
+
     const result = await generateRecommendation({
       userQuery: query,
       userContext: context,
@@ -50,6 +102,9 @@ app.post("/api/query", async (req, res) => {
         oddsSource: oddsContext.source,
         oddsEventsProvided: oddsContext.events.length,
         latencyMs: Date.now() - startedAt
+      },
+      debug: {
+        llmInput
       }
     };
 

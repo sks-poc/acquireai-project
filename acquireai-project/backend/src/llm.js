@@ -93,8 +93,17 @@ function validateConfig() {
   }
 }
 
+export function buildLlmInput({ userQuery, userContext, oddsContext }) {
+  return {
+    userQuery,
+    userContext,
+    oddsContext
+  };
+}
+
 export async function generateRecommendation({ userQuery, userContext, oddsContext }) {
   validateConfig();
+  const llmInput = buildLlmInput({ userQuery, userContext, oddsContext });
 
   const response = await getClient().chat.completions.create({
     model: deploymentFromEnv(),
@@ -102,11 +111,7 @@ export async function generateRecommendation({ userQuery, userContext, oddsConte
       { role: "system", content: systemPrompt },
       {
         role: "user",
-        content: JSON.stringify({
-          userQuery,
-          userContext,
-          oddsContext
-        })
+        content: JSON.stringify(llmInput)
       }
     ],
     response_format: { type: "json_object" },

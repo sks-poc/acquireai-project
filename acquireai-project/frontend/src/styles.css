@@ -252,8 +252,6 @@ button:disabled {
   transition: opacity .15s;
 }
 .match-cta-btn:hover { opacity: .88; }
-  background: #dde5ff;
-}
 
 /* ── Match odds board page ───────────────────────────────────── */
 .match-page {

@@ -37,6 +37,8 @@ export function MatchPage() {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("popular");
   const highlightRef = useRef(null);
+  // { key: "marketKey|outcomeName", marketName, outcomeName, price }
+  const [selections, setSelections] = useState({});
 
   useEffect(() => {
     fetch(`${API_BASE}/api/match/${encodeURIComponent(id)}`)
@@ -101,6 +103,32 @@ export function MatchPage() {
       (outcome.label || "").toLowerCase() === oNeedle;
     return marketOk && outcomeOk;
   }
+
+  function selectionKey(marketKey, outcomeName) {
+    return `${marketKey}|${outcomeName}`;
+  }
+
+  function toggleSelection(market, outcome) {
+    const key = selectionKey(market.key, outcome.name);
+    setSelections((prev) => {
+      // Only one outcome per market — deselect others in same market
+      const next = { ...prev };
+      Object.keys(next).forEach((k) => {
+        if (k.startsWith(market.key + "|")) delete next[k];
+      });
+      if (prev[key]) return next; // was selected → deselect
+      next[key] = {
+        marketKey: market.key,
+        marketName: market.name,
+        outcomeName: outcome.label || outcome.name,
+        price: outcome.price,
+      };
+      return next;
+    });
+  }
+
+  const selectedList = Object.values(selections);
+  const totalOdds = selectedList.reduce((acc, s) => acc * s.price, 1);
 
   if (error)
     return (
@@ -186,11 +214,21 @@ export function MatchPage() {
             <div className={`outcomes outcomes-${market.outcomes.length}`}>
               {market.outcomes.map((outcome) => {
                 const rec = isRecommended(market, outcome);
+                const key = selectionKey(market.key, outcome.name);
+                const selected = !!selections[key];
                 return (
-                  <div
+                  <button
                     key={outcome.name}
                     ref={rec ? highlightRef : null}
-                    className={`outcome-btn${rec ? " outcome-recommended outcome-pulse" : ""}`}
+                    className={[
+                      "outcome-btn",
+                      rec ? "outcome-recommended outcome-pulse" : "",
+                      selected ? "outcome-selected" : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                    onClick={() => toggleSelection(market, outcome)}
+                    type="button"
                   >
                     <span className="outcome-label">
                       {outcome.label || outcome.name}
@@ -198,13 +236,79 @@ export function MatchPage() {
                     <span className="outcome-price">
                       {outcome.price.toFixed(2)}
                     </span>
-                  </div>
+                    {selected && <span className="outcome-check">✓</span>}
+                  </button>
                 );
               })}
             </div>
           </div>
         ))}
       </div>
+
+      {/* Bet Slip */}
+      {selectedList.length > 0 && (
+        <div className="betslip">
+          <div className="betslip-header">
+            <span className="betslip-title">Bet Slip</span>
+            <span className="betslip-count">{selectedList.length}</span>
+          </div>
+          <ul className="betslip-list">
+            {selectedList.map((s) => (
+              <li
+                key={`${s.marketKey}|${s.outcomeName}`}
+                className="betslip-item"
+              >
+                <div className="betslip-item-info">
+                  <span className="betslip-outcome">{s.outcomeName}</span>
+                  <span className="betslip-market">{s.marketName}</span>
+                </div>
+                <div className="betslip-item-right">
+                  <span className="betslip-price">{s.price.toFixed(2)}</span>
+                  <button
+                    className="betslip-remove"
+                    type="button"
+                    onClick={() =>
+                      setSelections((prev) => {
+                        const next = { ...prev };
+                        delete next[
+                          `${s.marketKey}|${s.outcomeName.replace(s.outcomeName, "")}`
+                        ];
+                        // find and remove by marketKey
+                        Object.keys(next).forEach((k) => {
+                          if (
+                            next[k].marketKey === s.marketKey &&
+                            next[k].outcomeName === s.outcomeName
+                          )
+                            delete next[k];
+                        });
+                        return next;
+                      })
+                    }
+                  >
+                    ✕
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+          {selectedList.length > 1 && (
+            <div className="betslip-total">
+              Combined odds: <strong>{totalOdds.toFixed(2)}</strong>
+            </div>
+          )}
+          <button className="betslip-cta" type="button">
+            Place Bet{selectedList.length > 1 ? "s" : ""} ·{" "}
+            {selectedList.length} selection{selectedList.length > 1 ? "s" : ""}
+          </button>
+          <button
+            className="betslip-clear"
+            type="button"
+            onClick={() => setSelections({})}
+          >
+            Clear all
+          </button>
+        </div>
+      )}
     </div>
   );
 }

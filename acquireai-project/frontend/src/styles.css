@@ -440,11 +440,153 @@ button:disabled {
   cursor: pointer;
   transition:
     background 0.15s,
-    border-color 0.15s;
+    border-color 0.15s,
+    transform 0.1s;
+  position: relative;
 }
 .outcome-btn:hover {
   background: #dde5ff;
+  transform: translateY(-1px);
 }
+
+/* Selected state */
+.outcome-selected {
+  background: #1f3bff !important;
+  border-color: #1f3bff !important;
+}
+.outcome-selected .outcome-label { color: rgba(255,255,255,.85); }
+.outcome-selected .outcome-price { color: #fff; }
+.outcome-check {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  font-size: 10px;
+  font-weight: 800;
+  color: #fff;
+  background: rgba(255,255,255,.25);
+  border-radius: 999px;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Betslip drawer */
+.betslip {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(480px, 100vw);
+  background: #fff;
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -8px 40px rgba(0,0,0,.15);
+  padding: 20px 20px 28px;
+  z-index: 100;
+}
+.betslip-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.betslip-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: #111827;
+}
+.betslip-count {
+  background: #1f3bff;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  border-radius: 999px;
+  min-width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+}
+.betslip-list {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.betslip-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #f8f9ff;
+  border: 1.5px solid #e5e8f5;
+  border-radius: 12px;
+  padding: 10px 14px;
+}
+.betslip-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.betslip-outcome { font-size: 14px; font-weight: 700; color: #111827; }
+.betslip-market  { font-size: 11px; color: #6b7280; }
+.betslip-item-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.betslip-price {
+  font-size: 18px;
+  font-weight: 800;
+  color: #1f3bff;
+}
+.betslip-remove {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 2px 4px;
+  line-height: 1;
+}
+.betslip-remove:hover { color: #ef4444; }
+.betslip-total {
+  font-size: 13px;
+  color: #374151;
+  margin-bottom: 10px;
+  text-align: right;
+}
+.betslip-cta {
+  width: 100%;
+  background: #1f3bff;
+  color: #fff;
+  border: none;
+  border-radius: 14px;
+  padding: 14px;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  margin-bottom: 8px;
+  transition: opacity .15s;
+}
+.betslip-cta:hover { opacity: .88; }
+.betslip-clear {
+  width: 100%;
+  background: none;
+  border: none;
+  color: #9ca3af;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px;
+}
+.betslip-clear:hover { color: #374151; }
+
+/* Add bottom padding to markets so betslip doesn't cover last row */
+.markets { padding-bottom: 200px; }
 
 .outcome-label {
   font-size: 12px;

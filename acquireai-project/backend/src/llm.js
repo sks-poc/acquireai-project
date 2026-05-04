@@ -1,35 +1,18 @@
-import OpenAI from "openai";
+import { AzureOpenAI } from "openai";
 
 function deploymentFromEnv() {
   return process.env.AZURE_OPENAI_DEPLOYMENT || process.env.LLM_MODEL_NAME || "gpt-5.4-hackathlon";
-}
-
-/**
- * Azure Responses API uses OpenAI-compatible base `{resource}/openai/v1` (not `/deployments/.../responses`).
- * @see https://learn.microsoft.com/en-us/azure/foundry/openai/how-to/responses
- */
-function responsesBaseUrl() {
-  const explicit = process.env.AZURE_OPENAI_RESPONSES_BASE_URL?.trim();
-  if (explicit) {
-    return explicit.replace(/\/$/, "");
-  }
-  const endpoint = (process.env.AZURE_OPENAI_ENDPOINT || "").replace(/\/$/, "");
-  if (!endpoint) {
-    return "";
-  }
-  if (/\/openai\/v1$/i.test(endpoint)) {
-    return endpoint;
-  }
-  return `${endpoint}/openai/v1`;
 }
 
 let client;
 
 function getClient() {
   if (!client) {
-    client = new OpenAI({
+    client = new AzureOpenAI({
       apiKey: process.env.AZURE_OPENAI_API_KEY,
-      baseURL: responsesBaseUrl()
+      endpoint: (process.env.AZURE_OPENAI_ENDPOINT || "").replace(/\/$/, ""),
+      apiVersion: process.env.AZURE_OPENAI_API_VERSION || "2024-12-01-preview",
+      deployment: deploymentFromEnv()
     });
   }
   return client;
@@ -52,6 +35,7 @@ Hard rules:
 - Prefer conservative, lower-risk choices when the user asks for sensible, safe, cautious, or low-risk options.
 - If the supplied data is insufficient, recommend no bet or say more event data is needed.
 - Always include responsible gambling guidance.
+- Always respond with a valid JSON object matching the required schema.
 `;
 
 const jsonSchema = {
@@ -104,20 +88,17 @@ function validateConfig() {
   if (!process.env.AZURE_OPENAI_API_KEY) {
     throw new Error("AZURE_OPENAI_API_KEY is missing. Add it to backend/.env");
   }
-  const base = responsesBaseUrl();
-  if (!base) {
-    throw new Error(
-      "AZURE_OPENAI_ENDPOINT (or AZURE_OPENAI_RESPONSES_BASE_URL) is missing. Use your resource endpoint from Azure Portal, e.g. https://YOUR-RESOURCE.openai.azure.com"
-    );
+  if (!process.env.AZURE_OPENAI_ENDPOINT) {
+    throw new Error("AZURE_OPENAI_ENDPOINT is missing. Add it to backend/.env");
   }
 }
 
 export async function generateRecommendation({ userQuery, userContext, oddsContext }) {
   validateConfig();
 
-  const response = await getClient().responses.create({
+  const response = await getClient().chat.completions.create({
     model: deploymentFromEnv(),
-    input: [
+    messages: [
       { role: "system", content: systemPrompt },
       {
         role: "user",
@@ -128,10 +109,11 @@ export async function generateRecommendation({ userQuery, userContext, oddsConte
         })
       }
     ],
-    text: { format: jsonSchema }
+    response_format: { type: "json_object" },
+    max_completion_tokens: 16384
   });
 
-  return JSON.parse(response.output_text);
+  return JSON.parse(response.choices[0].message.content);
 }
 
 export function fallbackRecommendation(message = "The recommendation service is unavailable.") {

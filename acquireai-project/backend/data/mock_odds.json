@@ -3,25 +3,93 @@
     "id": "ars-che-demo",
     "sport": "football",
     "league": "Premier League",
-    "commenceTime": "2026-05-04T19:00:00Z",
+    "commenceTime": "2026-05-08T19:45:00Z",
     "homeTeam": "Arsenal",
     "awayTeam": "Chelsea",
     "markets": [
       {
         "key": "h2h",
-        "name": "Match Winner",
+        "tab": "popular",
+        "name": "1X2",
         "outcomes": [
-          { "name": "Arsenal", "price": 1.85 },
-          { "name": "Draw", "price": 3.50 },
-          { "name": "Chelsea", "price": 4.20 }
+          { "name": "1", "label": "Arsenal", "price": 1.85 },
+          { "name": "X", "label": "Draw", "price": 3.5 },
+          { "name": "2", "label": "Chelsea", "price": 4.2 }
         ]
       },
       {
-        "key": "totals",
-        "name": "Total Goals",
+        "key": "halftime_fulltime",
+        "tab": "popular",
+        "name": "Half Time / Full Time",
         "outcomes": [
-          { "name": "Under 3.5 Goals", "price": 1.55 },
-          { "name": "Over 2.5 Goals", "price": 1.80 }
+          { "name": "1/1", "price": 2.1 },
+          { "name": "X/1", "price": 5.0 },
+          { "name": "2/1", "price": 16.0 },
+          { "name": "1/X", "price": 10.0 },
+          { "name": "X/X", "price": 4.2 },
+          { "name": "2/X", "price": 8.5 },
+          { "name": "1/2", "price": 19.0 },
+          { "name": "X/2", "price": 7.5 },
+          { "name": "2/2", "price": 8.0 }
+        ]
+      },
+      {
+        "key": "totals_25",
+        "tab": "goals",
+        "name": "Total Goals Over/Under 2.5",
+        "outcomes": [
+          { "name": "Under 2.5", "price": 2.1 },
+          { "name": "Over 2.5", "price": 1.75 }
+        ]
+      },
+      {
+        "key": "totals_35",
+        "tab": "goals",
+        "name": "Total Goals Over/Under 3.5",
+        "outcomes": [
+          { "name": "Under 3.5", "price": 1.55 },
+          { "name": "Over 3.5", "price": 2.5 }
+        ]
+      },
+      {
+        "key": "btts",
+        "tab": "goals",
+        "name": "Both Teams to Score",
+        "outcomes": [
+          { "name": "Yes", "price": 1.8 },
+          { "name": "No", "price": 2.1 }
+        ]
+      },
+      {
+        "key": "first_half_h2h",
+        "tab": "first_half",
+        "name": "First Half 1X2",
+        "outcomes": [
+          { "name": "1", "label": "Arsenal", "price": 2.8 },
+          { "name": "X", "label": "Draw", "price": 1.8 },
+          { "name": "2", "label": "Chelsea", "price": 5.5 }
+        ]
+      },
+      {
+        "key": "first_half_totals",
+        "tab": "first_half",
+        "name": "First Half Total Goals",
+        "outcomes": [
+          { "name": "Under 0.5", "price": 1.9 },
+          { "name": "Over 0.5", "price": 1.9 },
+          { "name": "Under 1.5", "price": 1.42 },
+          { "name": "Over 1.5", "price": 2.85 }
+        ]
+      },
+      {
+        "key": "corners_total",
+        "tab": "corners",
+        "name": "Total Corners",
+        "outcomes": [
+          { "name": "Under 9.5", "price": 1.88 },
+          { "name": "Over 9.5", "price": 1.92 },
+          { "name": "Under 11.5", "price": 1.45 },
+          { "name": "Over 11.5", "price": 2.75 }
         ]
       }
     ],
@@ -31,25 +99,82 @@
     "id": "liv-mci-demo",
     "sport": "football",
     "league": "Premier League",
-    "commenceTime": "2026-05-05T20:00:00Z",
+    "commenceTime": "2026-05-09T20:00:00Z",
     "homeTeam": "Liverpool",
     "awayTeam": "Manchester City",
     "markets": [
       {
         "key": "h2h",
-        "name": "Match Winner",
+        "tab": "popular",
+        "name": "1X2",
         "outcomes": [
-          { "name": "Liverpool", "price": 2.45 },
-          { "name": "Draw", "price": 3.30 },
-          { "name": "Manchester City", "price": 2.65 }
+          { "name": "1", "label": "Liverpool", "price": 2.45 },
+          { "name": "X", "label": "Draw", "price": 3.3 },
+          { "name": "2", "label": "Manchester City", "price": 2.65 }
         ]
       },
       {
-        "key": "totals",
-        "name": "Total Goals",
+        "key": "halftime_fulltime",
+        "tab": "popular",
+        "name": "Half Time / Full Time",
         "outcomes": [
-          { "name": "Under 3.5 Goals", "price": 1.62 },
-          { "name": "Over 2.5 Goals", "price": 1.72 }
+          { "name": "1/1", "price": 4.5 },
+          { "name": "X/1", "price": 6.0 },
+          { "name": "2/1", "price": 14.0 },
+          { "name": "1/X", "price": 12.0 },
+          { "name": "X/X", "price": 4.0 },
+          { "name": "2/X", "price": 7.0 },
+          { "name": "1/2", "price": 22.0 },
+          { "name": "X/2", "price": 6.5 },
+          { "name": "2/2", "price": 5.0 }
+        ]
+      },
+      {
+        "key": "totals_25",
+        "tab": "goals",
+        "name": "Total Goals Over/Under 2.5",
+        "outcomes": [
+          { "name": "Under 2.5", "price": 2.3 },
+          { "name": "Over 2.5", "price": 1.62 }
+        ]
+      },
+      {
+        "key": "totals_35",
+        "tab": "goals",
+        "name": "Total Goals Over/Under 3.5",
+        "outcomes": [
+          { "name": "Under 3.5", "price": 1.62 },
+          { "name": "Over 3.5", "price": 2.3 }
+        ]
+      },
+      {
+        "key": "btts",
+        "tab": "goals",
+        "name": "Both Teams to Score",
+        "outcomes": [
+          { "name": "Yes", "price": 1.72 },
+          { "name": "No", "price": 2.2 }
+        ]
+      },
+      {
+        "key": "first_half_h2h",
+        "tab": "first_half",
+        "name": "First Half 1X2",
+        "outcomes": [
+          { "name": "1", "label": "Liverpool", "price": 3.2 },
+          { "name": "X", "label": "Draw", "price": 1.72 },
+          { "name": "2", "label": "Manchester City", "price": 4.0 }
+        ]
+      },
+      {
+        "key": "corners_total",
+        "tab": "corners",
+        "name": "Total Corners",
+        "outcomes": [
+          { "name": "Under 9.5", "price": 1.95 },
+          { "name": "Over 9.5", "price": 1.85 },
+          { "name": "Under 11.5", "price": 1.5 },
+          { "name": "Over 11.5", "price": 2.6 }
         ]
       }
     ],

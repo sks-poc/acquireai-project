@@ -1,10 +1,27 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
+import { fileURLToPath } from "url";
+import path from "path";
+import fs from "fs";
 import { buildOddsContext, getEvents } from "./odds.js";
-import { fetchAllSportsMarketTypesAndOdds, fetchPrematchNavigationRaw } from "./kingmakers.js";
-import { buildLlmInput, fallbackRecommendation, generateRecommendation } from "./llm.js";
+import {
+  fetchAllSportsMarketTypesAndOdds,
+  fetchPrematchNavigationRaw,
+} from "./kingmakers.js";
+import {
+  buildLlmInput,
+  fallbackRecommendation,
+  generateRecommendation,
+} from "./llm.js";
 import { logInteraction } from "./logger.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const oddsPath = path.join(__dirname, "../data/mock_odds.json");
+function readMockOdds() {
+  return JSON.parse(fs.readFileSync(oddsPath, "utf8"));
+}
 
 const app = express();
 const port = process.env.PORT || 8080;
@@ -25,19 +42,30 @@ app.get("/api/events", async (req, res) => {
   }
 });
 
+app.get("/api/match/:id", (req, res) => {
+  try {
+    const events = readMockOdds();
+    const match = events.find((m) => m.id === req.params.id);
+    if (!match) return res.status(404).json({ error: "Match not found" });
+    res.json(match);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.get("/api/odds/navigation", async (req, res) => {
   try {
     const result = await fetchPrematchNavigationRaw({
       locale: req.query.locale,
       scheduleTimeFrame: req.query.scheduleTimeFrame,
       contentLanguage: req.query.contentLanguage,
-      discriminationId: req.query.discriminationId
+      discriminationId: req.query.discriminationId,
     });
     res.json({
       source: "kingmakers",
       fetchedAt: new Date().toISOString(),
       totalSports: result.sports.length,
-      data: result.payload?.data || { sports: [] }
+      data: result.payload?.data || { sports: [] },
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -61,7 +89,7 @@ app.get("/api/odds/snapshot", async (req, res) => {
       sportsConcurrency: req.query.sportsConcurrency,
       marketTypesConcurrency: req.query.marketTypesConcurrency,
       cacheTtlMs: req.query.cacheTtlMs,
-      maxSports: req.query.maxSports
+      maxSports: req.query.maxSports,
     });
 
     res.json(result);
@@ -77,20 +105,24 @@ app.post("/api/query", async (req, res) => {
     const { query, context = {} } = req.body || {};
 
     if (!query || typeof query !== "string" || query.trim().length < 3) {
-      return res.status(400).json({ error: "Request body must include a non-empty 'query' string." });
+      return res
+        .status(400)
+        .json({
+          error: "Request body must include a non-empty 'query' string.",
+        });
     }
 
     const oddsContext = await buildOddsContext(query);
     const llmInput = buildLlmInput({
       userQuery: query,
       userContext: context,
-      oddsContext
+      oddsContext,
     });
 
     const result = await generateRecommendation({
       userQuery: query,
       userContext: context,
-      oddsContext
+      oddsContext,
     });
 
     const payload = {
@@ -101,11 +133,11 @@ app.post("/api/query", async (req, res) => {
         model: process.env.LLM_MODEL_NAME || "gpt-4.1-mini",
         oddsSource: oddsContext.source,
         oddsEventsProvided: oddsContext.events.length,
-        latencyMs: Date.now() - startedAt
+        latencyMs: Date.now() - startedAt,
       },
       debug: {
-        llmInput
-      }
+        llmInput,
+      },
     };
 
     logInteraction({ query, context, response: payload });
@@ -113,8 +145,14 @@ app.post("/api/query", async (req, res) => {
   } catch (error) {
     console.error(error);
     const fallback = fallbackRecommendation(error.message);
-    logInteraction({ query: req.body?.query, error: error.message, response: fallback });
-    res.status(500).json({ error: "Failed to generate recommendation", ...fallback });
+    logInteraction({
+      query: req.body?.query,
+      error: error.message,
+      response: fallback,
+    });
+    res
+      .status(500)
+      .json({ error: "Failed to generate recommendation", ...fallback });
   }
 });
 

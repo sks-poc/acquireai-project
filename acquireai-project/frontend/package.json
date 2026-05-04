@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@tanstack/react-router": "^1.169.1",
     "@vitejs/plugin-react": "^4.3.4",
     "acquireai-natural-language-betting-agent": "file:..",
     "react": "^18.3.1",

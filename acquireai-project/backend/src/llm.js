@@ -1,6 +1,39 @@
 import OpenAI from "openai";
 
-const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+function deploymentFromEnv() {
+  return process.env.AZURE_OPENAI_DEPLOYMENT || process.env.LLM_MODEL_NAME || "gpt-5.4-hackathlon";
+}
+
+/**
+ * Azure Responses API uses OpenAI-compatible base `{resource}/openai/v1` (not `/deployments/.../responses`).
+ * @see https://learn.microsoft.com/en-us/azure/foundry/openai/how-to/responses
+ */
+function responsesBaseUrl() {
+  const explicit = process.env.AZURE_OPENAI_RESPONSES_BASE_URL?.trim();
+  if (explicit) {
+    return explicit.replace(/\/$/, "");
+  }
+  const endpoint = (process.env.AZURE_OPENAI_ENDPOINT || "").replace(/\/$/, "");
+  if (!endpoint) {
+    return "";
+  }
+  if (/\/openai\/v1$/i.test(endpoint)) {
+    return endpoint;
+  }
+  return `${endpoint}/openai/v1`;
+}
+
+let client;
+
+function getClient() {
+  if (!client) {
+    client = new OpenAI({
+      apiKey: process.env.AZURE_OPENAI_API_KEY,
+      baseURL: responsesBaseUrl()
+    });
+  }
+  return client;
+}
 
 const systemPrompt = `
 You are AcquireAI, a responsible betting recommendation prototype for a hackathon demo.
@@ -68,16 +101,22 @@ const jsonSchema = {
 };
 
 function validateConfig() {
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error("OPENAI_API_KEY is missing. Add it to backend/.env");
+  if (!process.env.AZURE_OPENAI_API_KEY) {
+    throw new Error("AZURE_OPENAI_API_KEY is missing. Add it to backend/.env");
+  }
+  const base = responsesBaseUrl();
+  if (!base) {
+    throw new Error(
+      "AZURE_OPENAI_ENDPOINT (or AZURE_OPENAI_RESPONSES_BASE_URL) is missing. Use your resource endpoint from Azure Portal, e.g. https://YOUR-RESOURCE.openai.azure.com"
+    );
   }
 }
 
 export async function generateRecommendation({ userQuery, userContext, oddsContext }) {
   validateConfig();
 
-  const response = await client.responses.create({
-    model: process.env.LLM_MODEL_NAME || "gpt-4.1-mini",
+  const response = await getClient().responses.create({
+    model: deploymentFromEnv(),
     input: [
       { role: "system", content: systemPrompt },
       {

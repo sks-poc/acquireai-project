@@ -321,7 +321,18 @@ export async function fetchAllSportsMarketTypesAndOdds(options = {}) {
     sports: sportResults
   };
 
-  snapshotCache.set(cacheKey, { createdAt: now, value: response });
+  let totalOddsCount = 0;
+  for (const sport of response.sports) {
+    for (const marketType of sport.oddsByMarketType || []) {
+      totalOddsCount += Number(marketType.oddsCount || 0);
+    }
+  }
+
+  // Avoid caching empty snapshots: they are often transient upstream failures.
+  if (totalOddsCount > 0 || !config.includeOdds) {
+    snapshotCache.set(cacheKey, { createdAt: now, value: response });
+  }
+
   return response;
 }
 

@@ -158,6 +158,22 @@ export async function buildOddsContext(userQuery, limit = 5) {
       if (kingmakersContext.events.length > 0) {
         return kingmakersContext;
       }
+
+      // Retry with a broad query and light parameters if first call returns no events.
+      const retryContext = await buildKingmakersOddsContext(
+        "football basketball tennis baseball hockey",
+        effectiveLimit,
+        {
+          maxSports: 5,
+          maxPagesPerMarketType: 2,
+          pageSize: 20,
+          cacheTtlMs: 1
+        }
+      );
+
+      if (retryContext.events.length > 0) {
+        return retryContext;
+      }
     } catch (error) {
       console.warn("Kingmakers query odds failed, using fallback:", error.message);
     }

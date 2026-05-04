@@ -111,6 +111,17 @@ app.post("/api/query", async (req, res) => {
           error: "Request body must include a non-empty 'query' string.",
         });
     }
+    if (query.length > 500) {
+      return res
+        .status(400)
+        .json({ error: "Query must be 500 characters or fewer." });
+    }
+    // Block obviously non-natural-language input (code, GraphQL, JSON, brackets)
+    if (/[{}<>]|query\s*\{|fragment\s+\w+|__schema/.test(query)) {
+      return res
+        .status(400)
+        .json({ error: "Query must be a natural language betting question." });
+    }
 
     const oddsContext = await buildOddsContext(query);
     const llmInput = buildLlmInput({

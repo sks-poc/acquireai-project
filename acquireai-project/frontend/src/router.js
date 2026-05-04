@@ -21,6 +21,7 @@ export const matchRoute = createRoute({
   validateSearch: (search) => ({
     market: typeof search.market === "string" ? search.market : "",
     outcome: typeof search.outcome === "string" ? search.outcome : "",
+    recs: typeof search.recs === "string" ? search.recs : "",
   }),
 });
 

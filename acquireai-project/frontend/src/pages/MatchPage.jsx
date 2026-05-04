@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useParams, useSearch, useNavigate } from "@tanstack/react-router";
 import { matchRoute } from "../router.js";
 
@@ -28,7 +28,11 @@ function formatDate(iso) {
 
 export function MatchPage() {
   const { id } = useParams({ from: matchRoute.id });
-  const { market: recMarket = "", outcome: recOutcome = "" } = useSearch({
+  const {
+    market: recMarket = "",
+    outcome: recOutcome = "",
+    recs: recsJson = "",
+  } = useSearch({
     from: matchRoute.id,
   });
   const navigate = useNavigate();
@@ -40,16 +44,38 @@ export function MatchPage() {
   // { key: "marketKey|outcomeName", marketName, outcomeName, price }
   const [selections, setSelections] = useState({});
 
+  // All recommended outcomes: index 0 = primary (orange), rest = alternatives (blue)
+  const allRecs = useMemo(() => {
+    if (recsJson) {
+      try {
+        const parsed = JSON.parse(recsJson);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (_) {}
+    }
+    if (recOutcome) return [{ market: recMarket, outcome: recOutcome }];
+    return [];
+  }, [recsJson, recMarket, recOutcome]);
+
   useEffect(() => {
     fetch(`${API_BASE}/api/match/${encodeURIComponent(id)}`)
       .then((r) => r.json())
       .then((data) => {
         if (data.error) throw new Error(data.error);
         setMatch(data);
-        // Auto-switch to the tab containing the recommended market.
-        // recMarket may be a market NAME (from LLM) or a market KEY — try both.
-        if (recMarket) {
-          const needle = recMarket.toLowerCase();
+        // Auto-switch to the tab containing the primary recommendation.
+        let pMarket = recMarket;
+        let pOutcome = recOutcome;
+        if (recsJson) {
+          try {
+            const parsed = JSON.parse(recsJson);
+            if (Array.isArray(parsed) && parsed[0]) {
+              pMarket = parsed[0].market || recMarket;
+              pOutcome = parsed[0].outcome || recOutcome;
+            }
+          } catch (_) {}
+        }
+        if (pMarket) {
+          const needle = pMarket.toLowerCase();
           const found = data.markets.find(
             (m) =>
               m.key.toLowerCase() === needle ||
@@ -60,9 +86,8 @@ export function MatchPage() {
             return;
           }
         }
-        // Fallback: find by outcome label/name
-        if (recOutcome) {
-          const needle = recOutcome.toLowerCase();
+        if (pOutcome) {
+          const needle = pOutcome.toLowerCase();
           for (const m of data.markets) {
             const hit = m.outcomes.find(
               (o) =>
@@ -77,7 +102,7 @@ export function MatchPage() {
         }
       })
       .catch((e) => setError(e.message));
-  }, [id, recMarket, recOutcome]);
+  }, [id, recMarket, recOutcome, recsJson]);
 
   // Scroll the highlighted outcome into view once it's rendered
   useEffect(() => {
@@ -89,19 +114,23 @@ export function MatchPage() {
     }
   }, [match, activeTab]);
 
+  // Returns "primary" | "alt" | false
   function isRecommended(market, outcome) {
-    if (!recOutcome) return false;
-    // recMarket may be a NAME (from LLM) or a KEY — accept both
-    const mNeedle = (recMarket || "").toLowerCase();
-    const marketOk =
-      !mNeedle ||
-      market.key.toLowerCase() === mNeedle ||
-      (market.name || "").toLowerCase() === mNeedle;
-    const oNeedle = recOutcome.toLowerCase();
-    const outcomeOk =
-      (outcome.name || "").toLowerCase() === oNeedle ||
-      (outcome.label || "").toLowerCase() === oNeedle;
-    return marketOk && outcomeOk;
+    for (let i = 0; i < allRecs.length; i++) {
+      const { market: rm, outcome: ro } = allRecs[i];
+      if (!ro) continue;
+      const mNeedle = (rm || "").toLowerCase();
+      const marketOk =
+        !mNeedle ||
+        market.key.toLowerCase() === mNeedle ||
+        (market.name || "").toLowerCase() === mNeedle;
+      const oNeedle = ro.toLowerCase();
+      const outcomeOk =
+        (outcome.name || "").toLowerCase() === oNeedle ||
+        (outcome.label || "").toLowerCase() === oNeedle;
+      if (marketOk && outcomeOk) return i === 0 ? "primary" : "alt";
+    }
+    return false;
   }
 
   function selectionKey(marketKey, outcomeName) {
@@ -178,14 +207,20 @@ export function MatchPage() {
       </div>
 
       {/* AI recommendation banner */}
-      {recOutcome && (
+      {allRecs.length > 0 && (
         <div className="rec-banner">
           <span className="rec-star">★</span>
-          AI Recommendation: <strong>{recOutcome}</strong>
-          {recMarket && (
+          AI pick: <strong>{allRecs[0].outcome}</strong>
+          {allRecs[0].market && (
             <span className="rec-market">
               {" "}
-              · {recMarket.replace(/_/g, " ")}
+              · {allRecs[0].market.replace(/_/g, " ")}
+            </span>
+          )}
+          {allRecs.length > 1 && (
+            <span className="rec-alts">
+              {" "}
+              +{allRecs.length - 1} more highlighted
             </span>
           )}
         </div>
@@ -219,10 +254,13 @@ export function MatchPage() {
                 return (
                   <button
                     key={outcome.name}
-                    ref={rec ? highlightRef : null}
+                    ref={rec === "primary" ? highlightRef : null}
                     className={[
                       "outcome-btn",
-                      rec ? "outcome-recommended outcome-pulse" : "",
+                      rec === "primary"
+                        ? "outcome-recommended outcome-pulse"
+                        : "",
+                      rec === "alt" ? "outcome-alt" : "",
                       selected ? "outcome-selected" : "",
                     ]
                       .filter(Boolean)

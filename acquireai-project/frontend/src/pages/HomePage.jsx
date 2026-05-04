@@ -44,7 +44,7 @@ const examples = [
 export function HomePage() {
   const navigate = useNavigate();
   const [query, setQuery] = useState(examples[0]);
-  const [riskProfile, setRiskProfile] = useState("conservative");
+  const [riskProfile, setRiskProfile] = useState("balanced");
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState(null);
   const [error, setError] = useState(null);
@@ -129,23 +129,28 @@ export function HomePage() {
     return { matchId, market, outcome };
   }
 
-  // Collect the first unique match CTA from all oddsUsed entries
+  // Collect all recs for the primary match from oddsUsed entries
   function primaryMatchCta() {
     if (!response?.oddsUsed?.length) return null;
+    let matchId = null;
+    const recs = [];
     for (const odd of response.oddsUsed) {
       if (typeof odd === "string") continue;
-      // Direct eventId from normalized response
+      let mid = null;
       if (odd.event && odd.event.includes("-demo")) {
-        return {
-          matchId: odd.event,
-          market: odd.market || "",
-          outcome: odd.selection || "",
-        };
+        mid = odd.event;
+      } else {
+        const info = viewOnBoard(odd);
+        mid = info?.matchId ?? null;
       }
-      const info = viewOnBoard(odd);
-      if (info) return info;
+      if (!mid) continue;
+      if (!matchId) matchId = mid;
+      if (mid === matchId) {
+        recs.push({ market: odd.market || "", outcome: odd.selection || "" });
+      }
     }
-    return null;
+    if (!matchId || !recs.length) return null;
+    return { matchId, recs };
   }
 
   return (
@@ -225,9 +230,18 @@ export function HomePage() {
                     <span className="match-cta-icon">⚽</span>
                     <div>
                       <div className="match-cta-label">AI picked</div>
-                      <div className="match-cta-selection">{cta.outcome}</div>
-                      {cta.market && (
-                        <div className="match-cta-market">{cta.market}</div>
+                      <div className="match-cta-selection">
+                        {cta.recs[0]?.outcome}
+                      </div>
+                      {cta.recs[0]?.market && (
+                        <div className="match-cta-market">
+                          {cta.recs[0].market}
+                        </div>
+                      )}
+                      {cta.recs.length > 1 && (
+                        <div className="match-cta-market">
+                          +{cta.recs.length - 1} alternatives highlighted
+                        </div>
                       )}
                     </div>
                   </div>
@@ -238,7 +252,7 @@ export function HomePage() {
                       navigate({
                         to: "/match/$id",
                         params: { id: cta.matchId },
-                        search: { market: cta.market, outcome: cta.outcome },
+                        search: { recs: JSON.stringify(cta.recs) },
                       })
                     }
                   >
@@ -289,8 +303,12 @@ export function HomePage() {
                                     to: "/match/$id",
                                     params: { id: onView.matchId },
                                     search: {
-                                      market: onView.market,
-                                      outcome: onView.outcome,
+                                      recs: JSON.stringify([
+                                        {
+                                          market: onView.market,
+                                          outcome: onView.outcome,
+                                        },
+                                      ]),
                                     },
                                   })
                                 }

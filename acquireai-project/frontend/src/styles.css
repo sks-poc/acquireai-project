@@ -184,10 +184,17 @@ button:disabled {
   font-weight: 600;
   color: #1f3bff;
   cursor: pointer;
-  transition: background .15s, border-color .15s;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
 }
-.match-pill:hover { background: #edf1ff; border-color: #1f3bff; }
-.match-pill-arrow { font-size: 16px; }
+.match-pill:hover {
+  background: #edf1ff;
+  border-color: #1f3bff;
+}
+.match-pill-arrow {
+  font-size: 16px;
+}
 
 /* ── View odds button inline in odds list ───────────────────── */
 .view-odds-btn {
@@ -207,7 +214,9 @@ button:disabled {
   vertical-align: middle;
   padding: 0;
 }
-.view-odds-btn:hover { background: #dde5ff; }
+.view-odds-btn:hover {
+  background: #dde5ff;
+}
 
 /* ── Match CTA card (appears above result) ───────────────────── */
 .match-cta-card {
@@ -220,24 +229,33 @@ button:disabled {
   padding: 18px 22px;
   margin-bottom: 16px;
   color: white;
-  box-shadow: 0 8px 24px rgba(31,59,255,.25);
+  box-shadow: 0 8px 24px rgba(31, 59, 255, 0.25);
 }
 .match-cta-left {
   display: flex;
   align-items: center;
   gap: 14px;
 }
-.match-cta-icon { font-size: 28px; }
+.match-cta-icon {
+  font-size: 28px;
+}
 .match-cta-label {
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: .08em;
-  opacity: .75;
+  letter-spacing: 0.08em;
+  opacity: 0.75;
   margin-bottom: 2px;
 }
-.match-cta-selection { font-size: 18px; font-weight: 800; }
-.match-cta-market { font-size: 13px; opacity: .8; margin-top: 1px; }
+.match-cta-selection {
+  font-size: 18px;
+  font-weight: 800;
+}
+.match-cta-market {
+  font-size: 13px;
+  opacity: 0.8;
+  margin-top: 1px;
+}
 .match-cta-btn {
   flex-shrink: 0;
   background: white;
@@ -249,9 +267,11 @@ button:disabled {
   font-size: 14px;
   cursor: pointer;
   white-space: nowrap;
-  transition: opacity .15s;
+  transition: opacity 0.15s;
 }
-.match-cta-btn:hover { opacity: .88; }
+.match-cta-btn:hover {
+  opacity: 0.88;
+}
 
 /* ── Match odds board page ───────────────────────────────────── */
 .match-page {
@@ -452,8 +472,12 @@ button:disabled {
   background: #1f3bff !important;
   border-color: #1f3bff !important;
 }
-.outcome-selected .outcome-label { color: rgba(255,255,255,.85); }
-.outcome-selected .outcome-price { color: #fff; }
+.outcome-selected .outcome-label {
+  color: rgba(255, 255, 255, 0.85);
+}
+.outcome-selected .outcome-price {
+  color: #fff;
+}
 .outcome-check {
   position: absolute;
   top: 6px;
@@ -461,7 +485,7 @@ button:disabled {
   font-size: 10px;
   font-weight: 800;
   color: #fff;
-  background: rgba(255,255,255,.25);
+  background: rgba(255, 255, 255, 0.25);
   border-radius: 999px;
   width: 16px;
   height: 16px;
@@ -479,7 +503,7 @@ button:disabled {
   width: min(480px, 100vw);
   background: #fff;
   border-radius: 20px 20px 0 0;
-  box-shadow: 0 -8px 40px rgba(0,0,0,.15);
+  box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.15);
   padding: 20px 20px 28px;
   z-index: 100;
 }
@@ -529,8 +553,15 @@ button:disabled {
   flex-direction: column;
   gap: 2px;
 }
-.betslip-outcome { font-size: 14px; font-weight: 700; color: #111827; }
-.betslip-market  { font-size: 11px; color: #6b7280; }
+.betslip-outcome {
+  font-size: 14px;
+  font-weight: 700;
+  color: #111827;
+}
+.betslip-market {
+  font-size: 11px;
+  color: #6b7280;
+}
 .betslip-item-right {
   display: flex;
   align-items: center;
@@ -550,7 +581,9 @@ button:disabled {
   padding: 2px 4px;
   line-height: 1;
 }
-.betslip-remove:hover { color: #ef4444; }
+.betslip-remove:hover {
+  color: #ef4444;
+}
 .betslip-total {
   font-size: 13px;
   color: #374151;
@@ -568,9 +601,11 @@ button:disabled {
   font-weight: 800;
   cursor: pointer;
   margin-bottom: 8px;
-  transition: opacity .15s;
+  transition: opacity 0.15s;
 }
-.betslip-cta:hover { opacity: .88; }
+.betslip-cta:hover {
+  opacity: 0.88;
+}
 .betslip-clear {
   width: 100%;
   background: none;
@@ -581,10 +616,14 @@ button:disabled {
   cursor: pointer;
   padding: 4px;
 }
-.betslip-clear:hover { color: #374151; }
+.betslip-clear:hover {
+  color: #374151;
+}
 
 /* Add bottom padding to markets so betslip doesn't cover last row */
-.markets { padding-bottom: 200px; }
+.markets {
+  padding-bottom: 200px;
+}
 
 .outcome-label {
   font-size: 12px;
@@ -605,6 +644,25 @@ button:disabled {
 }
 .outcome-recommended .outcome-price {
   color: #d47e00;
+}
+
+/* Alternative recommendations — soft blue */
+.outcome-alt {
+  background: #eff6ff !important;
+  border-color: #93c5fd !important;
+}
+.outcome-alt .outcome-price {
+  color: #2563eb;
+}
+.outcome-alt .outcome-label {
+  color: #2563eb;
+}
+
+.rec-alts {
+  font-size: 12px;
+  font-weight: 500;
+  opacity: 0.65;
+  margin-left: 4px;
 }
 
 /* Pulse animation fired on page load */

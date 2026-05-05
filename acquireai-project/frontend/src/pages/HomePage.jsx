@@ -234,9 +234,10 @@ export function HomePage() {
             rows={4}
           />
           <div className="controls">
-            <label>
-              Risk profile
+            <label className="controls-field">
+              <span className="controls-caption">Risk profile</span>
               <select
+                className="controls-select"
                 value={riskProfile}
                 onChange={(e) => setRiskProfile(e.target.value)}
               >
@@ -245,36 +246,15 @@ export function HomePage() {
                 <option value="aggressive">Aggressive demo only</option>
               </select>
             </label>
-            <button disabled={loading || !query.trim()} type="submit">
+            <button
+              className="controls-submit-btn"
+              disabled={loading || !query.trim()}
+              type="submit"
+            >
               {loading ? "Thinking..." : "Get recommendation"}
             </button>
           </div>
         </form>
-
-        <div className="examples">
-          {examples.map((item) => (
-            <button key={item} type="button" onClick={() => setQuery(item)}>
-              {item}
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <section className="matches-row">
-        <p className="matches-row-label">Browse live odds boards</p>
-        {KNOWN_MATCHES.map((m) => (
-          <button
-            key={m.id}
-            className="match-pill"
-            type="button"
-            onClick={() => navigate({ to: "/match/$id", params: { id: m.id } })}
-          >
-            {m.id === "ars-che-demo"
-              ? "Arsenal vs Chelsea"
-              : "Liverpool vs Man City"}
-            <span className="match-pill-arrow">→</span>
-          </button>
-        ))}
       </section>
 
       {error && <section className="error">{error}</section>}

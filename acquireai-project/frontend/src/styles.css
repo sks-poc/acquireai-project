@@ -66,10 +66,65 @@ select {
 }
 .controls {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: end;
-  gap: 16px;
-  margin-top: 16px;
+  gap: 14px;
+  margin-top: 18px;
+}
+.controls-field {
+  margin: 0;
+}
+.controls-caption {
+  display: inline-block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: #27385d;
+  font-weight: 700;
+}
+.controls-select {
+  height: 52px;
+  border-radius: 16px;
+  border: 1.5px solid #c8d5ec;
+  background: linear-gradient(180deg, #fbfdff 0%, #f6f9ff 100%);
+  padding-right: 44px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  font-weight: 700;
+  color: #0f2146;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s,
+    background 0.15s;
+}
+.controls-select:hover {
+  border-color: #9bb0d7;
+}
+.controls-select:focus {
+  outline: none;
+  border-color: #4f7fff;
+  box-shadow: 0 0 0 4px rgba(79, 127, 255, 0.18);
+}
+.controls-submit-btn {
+  align-self: end;
+  min-height: 52px;
+  padding: 0 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #3158ff 0%, #1f3bff 100%);
+  box-shadow: 0 10px 22px rgba(31, 59, 255, 0.28);
+  transition:
+    transform 0.14s,
+    box-shadow 0.14s,
+    filter 0.14s;
+}
+.controls-submit-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 26px rgba(31, 59, 255, 0.33);
+  filter: brightness(1.02);
+}
+.controls-submit-btn:active:not(:disabled) {
+  transform: translateY(0);
 }
 button {
   border: 0;
@@ -83,17 +138,6 @@ button {
 button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
-}
-.examples {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 18px;
-}
-.examples button {
-  background: #edf1ff;
-  color: #1f3bff;
-  font-weight: 700;
 }
 .badge {
   display: inline-block;
@@ -154,46 +198,11 @@ button:disabled {
 @media (max-width: 720px) {
   .controls {
     grid-template-columns: 1fr;
+    gap: 12px;
   }
-}
-
-/* ── Browse matches row ──────────────────────────────────────── */
-.matches-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-bottom: 16px;
-}
-.matches-row-label {
-  font-size: 13px;
-  font-weight: 600;
-  color: #6b7280;
-  margin: 0;
-  white-space: nowrap;
-}
-.match-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 9px 16px;
-  background: white;
-  border: 1.5px solid #d1d5f0;
-  border-radius: 999px;
-  font-size: 14px;
-  font-weight: 600;
-  color: #1f3bff;
-  cursor: pointer;
-  transition:
-    background 0.15s,
-    border-color 0.15s;
-}
-.match-pill:hover {
-  background: #edf1ff;
-  border-color: #1f3bff;
-}
-.match-pill-arrow {
-  font-size: 16px;
+  .controls-submit-btn {
+    width: 100%;
+  }
 }
 
 /* ── View odds button inline in odds list ───────────────────── */

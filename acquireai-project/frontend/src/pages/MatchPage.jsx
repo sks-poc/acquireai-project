@@ -177,17 +177,39 @@ export function MatchPage() {
 
   useEffect(() => {
     let cancelled = false;
-    const eventIds = [...new Set([String(id), ...recObjects.map((r) => r.eventId)])];
+    const primaryEventId = String(id);
+    const eventIds = [...new Set([primaryEventId, ...recObjects.map((r) => r.eventId)])];
+
+    setError(null);
+    setMatchesById((prev) => {
+      const next = {};
+      for (const eventId of eventIds) {
+        if (prev[eventId]) next[eventId] = prev[eventId];
+      }
+      return next;
+    });
 
     (async () => {
       try {
-        const entries = await Promise.all(
-          eventIds.map(async (eventId) => {
-            const data = await fetchMatchById(eventId);
-            return [eventId, data];
-          }),
-        );
-        if (!cancelled) setMatchesById(Object.fromEntries(entries));
+        const primary = await fetchMatchById(primaryEventId);
+        if (cancelled) return;
+        setMatchesById((prev) => ({ ...prev, [primaryEventId]: primary }));
+
+        // Load linked events in background to avoid blocking first render.
+        const secondaryEventIds = eventIds.filter((eventId) => eventId !== primaryEventId);
+        secondaryEventIds.forEach((eventId) => {
+          fetchMatchById(eventId)
+            .then((data) => {
+              if (cancelled) return;
+              setMatchesById((prev) => {
+                if (prev[eventId]) return prev;
+                return { ...prev, [eventId]: data };
+              });
+            })
+            .catch(() => {
+              // Ignore individual secondary event failures.
+            });
+        });
       } catch (e) {
         if (!cancelled) setError(e.message);
       }

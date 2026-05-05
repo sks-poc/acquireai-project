@@ -56,51 +56,79 @@ function inferTabFromMarketName(name) {
   return "popular";
 }
 
-async function findLiveMatchByEventId(eventId) {
-  const snapshot = await fetchAllSportsMarketTypesAndOdds({
-    includeOdds: true,
-    maxSports: toPositiveInt(process.env.KINGMAKERS_QUERY_MAX_SPORTS, 8),
-    maxPagesPerMarketType: toPositiveInt(
-      process.env.KINGMAKERS_QUERY_MAX_PAGES_PER_MARKET_TYPE,
-      3,
-    ),
-    pageSize: toPositiveInt(process.env.KINGMAKERS_QUERY_PAGE_SIZE, 30),
-    cacheTtlMs: toPositiveInt(process.env.KINGMAKERS_QUERY_CACHE_TTL_MS, 60000),
+const LIVE_MATCH_CACHE_TTL_MS = toPositiveInt(
+  process.env.LIVE_MATCH_CACHE_TTL_MS,
+  120000,
+);
+const LIVE_MATCH_MISS_TTL_MS = toPositiveInt(
+  process.env.LIVE_MATCH_MISS_TTL_MS,
+  15000,
+);
+
+const liveMatchCache = new Map();
+let liveSnapshotIndexCache = {
+  expiresAt: 0,
+  index: new Map(),
+};
+let liveSnapshotIndexPromise = null;
+
+function getCachedLiveMatch(eventKey) {
+  const now = Date.now();
+  const hit = liveMatchCache.get(eventKey);
+  if (!hit) return undefined;
+  if (hit.expiresAt <= now) {
+    liveMatchCache.delete(eventKey);
+    return undefined;
+  }
+  return hit.data;
+}
+
+function setCachedLiveMatch(eventKey, data) {
+  const ttl = data ? LIVE_MATCH_CACHE_TTL_MS : LIVE_MATCH_MISS_TTL_MS;
+  liveMatchCache.set(eventKey, {
+    expiresAt: Date.now() + ttl,
+    data,
   });
+}
 
-  const eventKey = String(eventId);
+function buildLiveMatchIndex(snapshot) {
+  const byEvent = new Map();
+
   for (const sport of snapshot.sports || []) {
-    const byMarket = new Map();
-    let base = null;
-
     for (const marketType of sport.oddsByMarketType || []) {
       for (const odd of marketType.odds || []) {
-        if (String(odd.eventId) !== eventKey) continue;
+        const eventKey = String(odd.eventId || "");
+        if (!eventKey) continue;
 
-        if (!base) {
-          base = {
+        if (!byEvent.has(eventKey)) {
+          byEvent.set(eventKey, {
             id: eventKey,
             sport: String(sport.sportName || "unknown").toLowerCase(),
             league: odd.tournamentName || odd.categoryName || "unknown",
             commenceTime: odd.eventDate,
             ...splitParticipants(odd.eventName),
             source: "kingmakers",
-          };
+            marketsByKey: new Map(),
+          });
         }
 
-        const key = String(odd.marketTypeId);
-        const marketName = odd.marketName || odd.marketTranslationKey || `Market ${key}`;
-        if (!byMarket.has(key)) {
-          byMarket.set(key, {
-            key,
+        const event = byEvent.get(eventKey);
+        const marketKey = String(odd.marketTypeId);
+        const marketName =
+          odd.marketName || odd.marketTranslationKey || `Market ${marketKey}`;
+
+        if (!event.marketsByKey.has(marketKey)) {
+          event.marketsByKey.set(marketKey, {
+            key: marketKey,
             tab: inferTabFromMarketName(marketName),
             name: marketName,
             outcomes: [],
           });
         }
 
-        const market = byMarket.get(key);
-        const outcomeName = odd.selectionName || odd.selectionTranslationKey || "Selection";
+        const market = event.marketsByKey.get(marketKey);
+        const outcomeName =
+          odd.selectionName || odd.selectionTranslationKey || "Selection";
         const exists = market.outcomes.some((item) => item.name === outcomeName);
         if (!exists) {
           market.outcomes.push({
@@ -111,16 +139,67 @@ async function findLiveMatchByEventId(eventId) {
         }
       }
     }
-
-    if (base && byMarket.size > 0) {
-      return {
-        ...base,
-        markets: Array.from(byMarket.values()),
-      };
-    }
   }
 
-  return null;
+  const index = new Map();
+  for (const [eventKey, rawEvent] of byEvent.entries()) {
+    const { marketsByKey, ...event } = rawEvent;
+    if (!marketsByKey || marketsByKey.size === 0) continue;
+    index.set(eventKey, {
+      ...event,
+      markets: Array.from(marketsByKey.values()),
+    });
+  }
+
+  return index;
+}
+
+async function getLiveSnapshotIndex() {
+  const now = Date.now();
+  if (liveSnapshotIndexCache.expiresAt > now) {
+    return liveSnapshotIndexCache.index;
+  }
+
+  if (liveSnapshotIndexPromise) {
+    return liveSnapshotIndexPromise;
+  }
+
+  liveSnapshotIndexPromise = (async () => {
+    const snapshot = await fetchAllSportsMarketTypesAndOdds({
+      includeOdds: true,
+      maxSports: toPositiveInt(process.env.KINGMAKERS_QUERY_MAX_SPORTS, 8),
+      maxPagesPerMarketType: toPositiveInt(
+        process.env.KINGMAKERS_QUERY_MAX_PAGES_PER_MARKET_TYPE,
+        3,
+      ),
+      pageSize: toPositiveInt(process.env.KINGMAKERS_QUERY_PAGE_SIZE, 30),
+      cacheTtlMs: toPositiveInt(process.env.KINGMAKERS_QUERY_CACHE_TTL_MS, 60000),
+    });
+
+    const index = buildLiveMatchIndex(snapshot);
+    liveSnapshotIndexCache = {
+      expiresAt: Date.now() + LIVE_MATCH_CACHE_TTL_MS,
+      index,
+    };
+    return index;
+  })();
+
+  try {
+    return await liveSnapshotIndexPromise;
+  } finally {
+    liveSnapshotIndexPromise = null;
+  }
+}
+
+async function findLiveMatchByEventId(eventId) {
+  const eventKey = String(eventId);
+  const cached = getCachedLiveMatch(eventKey);
+  if (cached !== undefined) return cached;
+
+  const index = await getLiveSnapshotIndex();
+  const liveMatch = index.get(eventKey) || null;
+  setCachedLiveMatch(eventKey, liveMatch);
+  return liveMatch;
 }
 
 const app = express();

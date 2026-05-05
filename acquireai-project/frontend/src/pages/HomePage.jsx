@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 
 function toText(value) {
@@ -19,6 +19,7 @@ function toStringList(value) {
 }
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8080";
+const HOME_STATE_KEY = "acquireai.home.state.v1";
 
 const KNOWN_MATCHES = [
   { id: "ars-che-demo", teams: ["arsenal", "chelsea"] },
@@ -43,11 +44,41 @@ const examples = [
 
 export function HomePage() {
   const navigate = useNavigate();
-  const [query, setQuery] = useState(examples[0]);
-  const [riskProfile, setRiskProfile] = useState("balanced");
+  const [query, setQuery] = useState(() => {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(HOME_STATE_KEY) || "{}");
+      return saved.query || examples[0];
+    } catch (_) {
+      return examples[0];
+    }
+  });
+  const [riskProfile, setRiskProfile] = useState(() => {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(HOME_STATE_KEY) || "{}");
+      return saved.riskProfile || "balanced";
+    } catch (_) {
+      return "balanced";
+    }
+  });
   const [loading, setLoading] = useState(false);
-  const [response, setResponse] = useState(null);
+  const [response, setResponse] = useState(() => {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(HOME_STATE_KEY) || "{}");
+      return saved.response || null;
+    } catch (_) {
+      return null;
+    }
+  });
   const [error, setError] = useState(null);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(
+        HOME_STATE_KEY,
+        JSON.stringify({ query, riskProfile, response }),
+      );
+    } catch (_) {}
+  }, [query, riskProfile, response]);
 
   async function submit(event) {
     event?.preventDefault();
@@ -118,6 +149,15 @@ export function HomePage() {
   }
 
   function viewOnBoard(odd) {
+    const directEventId = toText(odd.event || odd.eventId || "").trim();
+    if (directEventId) {
+      return {
+        matchId: directEventId,
+        market: toText(odd.market || odd.marketKey || odd.marketName || ""),
+        outcome: toText(odd.selection || odd.selectionName || odd.outcome || ""),
+      };
+    }
+
     const eventText = toText(odd.event || odd.eventName || odd.bet || "");
     const matchId = findMatchId(eventText);
     if (!matchId) return null;
@@ -137,8 +177,8 @@ export function HomePage() {
     for (const odd of response.oddsUsed) {
       if (typeof odd === "string") continue;
       let mid = null;
-      if (odd.event && odd.event.includes("-demo")) {
-        mid = odd.event;
+      if (odd.event || odd.eventId) {
+        mid = String(odd.event || odd.eventId);
       } else {
         const info = viewOnBoard(odd);
         mid = info?.matchId ?? null;
@@ -352,6 +392,15 @@ export function HomePage() {
                     <summary>GPT input payload (debug)</summary>
                     <pre>
                       {JSON.stringify(response.debug.llmInput, null, 2)}
+                    </pre>
+                  </details>
+                )}
+
+                {response.debug?.llmOutput && (
+                  <details className="debug">
+                    <summary>GPT output payload (debug)</summary>
+                    <pre>
+                      {JSON.stringify(response.debug.llmOutput, null, 2)}
                     </pre>
                   </details>
                 )}

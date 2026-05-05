@@ -15,6 +15,30 @@ const TAB_LABELS = {
   other: "Other",
 };
 
+function normalizeText(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function marketMatches(recommendedMarket, market) {
+  const rec = normalizeText(recommendedMarket);
+  if (!rec) return true;
+  const key = normalizeText(market?.key);
+  const name = normalizeText(market?.name);
+  return key === rec || name === rec || key.includes(rec) || name.includes(rec) || rec.includes(name);
+}
+
+function outcomeMatches(recommendedOutcome, outcome) {
+  const rec = normalizeText(recommendedOutcome);
+  if (!rec) return false;
+  const name = normalizeText(outcome?.name);
+  const label = normalizeText(outcome?.label);
+  return name === rec || label === rec || name.includes(rec) || label.includes(rec) || rec.includes(name) || rec.includes(label);
+}
+
 function formatDate(iso) {
   const d = new Date(iso);
   const day = d.getDate();
@@ -119,15 +143,8 @@ export function MatchPage() {
     for (let i = 0; i < allRecs.length; i++) {
       const { market: rm, outcome: ro } = allRecs[i];
       if (!ro) continue;
-      const mNeedle = (rm || "").toLowerCase();
-      const marketOk =
-        !mNeedle ||
-        market.key.toLowerCase() === mNeedle ||
-        (market.name || "").toLowerCase() === mNeedle;
-      const oNeedle = ro.toLowerCase();
-      const outcomeOk =
-        (outcome.name || "").toLowerCase() === oNeedle ||
-        (outcome.label || "").toLowerCase() === oNeedle;
+      const marketOk = marketMatches(rm, market);
+      const outcomeOk = outcomeMatches(ro, outcome);
       if (marketOk && outcomeOk) return i === 0 ? "primary" : "alt";
     }
     return false;
@@ -179,7 +196,7 @@ export function MatchPage() {
       </div>
     );
 
-  const tabs = [...new Set(match.markets.map((m) => m.tab).filter(Boolean))];
+  const tabs = [...new Set(match.markets.map((m) => m.tab || "popular").filter(Boolean))];
   const visibleMarkets = match.markets.filter((m) => m.tab === activeTab);
 
   return (

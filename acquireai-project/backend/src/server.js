@@ -23,6 +23,106 @@ function readMockOdds() {
   return JSON.parse(fs.readFileSync(oddsPath, "utf8"));
 }
 
+function toPositiveInt(value, fallback) {
+  const parsed = Number.parseInt(String(value ?? ""), 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return parsed;
+}
+
+function splitParticipants(eventName) {
+  const separators = [" vs ", " v ", " - "];
+  const name = String(eventName || "").trim();
+  for (const separator of separators) {
+    if (name.toLowerCase().includes(separator)) {
+      const [left, right] = name.split(new RegExp(separator, "i"));
+      return {
+        homeTeam: (left || name).trim(),
+        awayTeam: (right || "").trim(),
+      };
+    }
+  }
+  return { homeTeam: name, awayTeam: "" };
+}
+
+function inferTabFromMarketName(name) {
+  const market = String(name || "").toLowerCase();
+  if (!market) return "popular";
+  if (market.includes("corner")) return "corners";
+  if (market.includes("first half") || market.includes("1st half")) return "first_half";
+  if (market.includes("second half") || market.includes("2nd half")) return "second_half";
+  if (market.includes("goal") || market.includes("btts") || market.includes("both teams")) return "goals";
+  if (market.includes("player") || market.includes("scorer")) return "player";
+  if (market.includes("double") || market.includes("draw no bet") || market.includes("handicap")) return "combo";
+  return "popular";
+}
+
+async function findLiveMatchByEventId(eventId) {
+  const snapshot = await fetchAllSportsMarketTypesAndOdds({
+    includeOdds: true,
+    maxSports: toPositiveInt(process.env.KINGMAKERS_QUERY_MAX_SPORTS, 8),
+    maxPagesPerMarketType: toPositiveInt(
+      process.env.KINGMAKERS_QUERY_MAX_PAGES_PER_MARKET_TYPE,
+      3,
+    ),
+    pageSize: toPositiveInt(process.env.KINGMAKERS_QUERY_PAGE_SIZE, 30),
+    cacheTtlMs: toPositiveInt(process.env.KINGMAKERS_QUERY_CACHE_TTL_MS, 60000),
+  });
+
+  const eventKey = String(eventId);
+  for (const sport of snapshot.sports || []) {
+    const byMarket = new Map();
+    let base = null;
+
+    for (const marketType of sport.oddsByMarketType || []) {
+      for (const odd of marketType.odds || []) {
+        if (String(odd.eventId) !== eventKey) continue;
+
+        if (!base) {
+          base = {
+            id: eventKey,
+            sport: String(sport.sportName || "unknown").toLowerCase(),
+            league: odd.tournamentName || odd.categoryName || "unknown",
+            commenceTime: odd.eventDate,
+            ...splitParticipants(odd.eventName),
+            source: "kingmakers",
+          };
+        }
+
+        const key = String(odd.marketTypeId);
+        const marketName = odd.marketName || odd.marketTranslationKey || `Market ${key}`;
+        if (!byMarket.has(key)) {
+          byMarket.set(key, {
+            key,
+            tab: inferTabFromMarketName(marketName),
+            name: marketName,
+            outcomes: [],
+          });
+        }
+
+        const market = byMarket.get(key);
+        const outcomeName = odd.selectionName || odd.selectionTranslationKey || "Selection";
+        const exists = market.outcomes.some((item) => item.name === outcomeName);
+        if (!exists) {
+          market.outcomes.push({
+            name: outcomeName,
+            label: outcomeName,
+            price: Number(odd.odd),
+          });
+        }
+      }
+    }
+
+    if (base && byMarket.size > 0) {
+      return {
+        ...base,
+        markets: Array.from(byMarket.values()),
+      };
+    }
+  }
+
+  return null;
+}
+
 const app = express();
 const port = process.env.PORT || 8080;
 
@@ -42,12 +142,16 @@ app.get("/api/events", async (req, res) => {
   }
 });
 
-app.get("/api/match/:id", (req, res) => {
+app.get("/api/match/:id", async (req, res) => {
   try {
     const events = readMockOdds();
     const match = events.find((m) => m.id === req.params.id);
-    if (!match) return res.status(404).json({ error: "Match not found" });
-    res.json(match);
+    if (match) return res.json(match);
+
+    const liveMatch = await findLiveMatchByEventId(req.params.id);
+    if (liveMatch) return res.json(liveMatch);
+
+    return res.status(404).json({ error: "Match not found" });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -148,6 +252,7 @@ app.post("/api/query", async (req, res) => {
       },
       debug: {
         llmInput,
+        llmOutput: result,
       },
     };
 

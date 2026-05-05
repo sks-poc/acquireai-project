@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 
 function toText(value) {
   if (value == null) return "";
@@ -50,6 +50,15 @@ function sleep(ms) {
 
 export function HomePage() {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    document.body.classList.remove("bk-landing-active");
+    document.body.classList.add("assistant-view");
+    document.documentElement.classList.remove("bk-landing-html");
+    return () => {
+      document.body.classList.remove("assistant-view");
+    };
+  }, []);
   const [query, setQuery] = useState(() => {
     try {
       const saved = JSON.parse(sessionStorage.getItem(HOME_STATE_KEY) || "{}");
@@ -259,13 +268,21 @@ export function HomePage() {
   }
 
   return (
-    <main className="page">
-      <section className="hero">
-        <p className="eyebrow">AcquireAI Hackathon Prototype</p>
-        <h1>Natural Language Betting Recommendation Agent</h1>
+    <main className="page page--assistant">
+      <header className="assistant-bar">
+        <h1 className="assistant-bar__title">Betting Assistant</h1>
+        <Link to="/" className="assistant-bar__home">
+          Home
+        </Link>
+      </header>
+
+      <section className="hero hero--assistant">
+        <p className="eyebrow">AcquireAI</p>
+        <h2 className="hero--assistant__heading">
+          Natural language betting recommendations
+        </h2>
         <p className="subtitle">
-          Text-only MVP with live odds support, LLM structured output, and
-          responsible gambling safeguards.
+          Live odds, structured output, and responsible gambling safeguards.
         </p>
       </section>
 

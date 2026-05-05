@@ -3,6 +3,7 @@ import {
   createRoute,
   createRootRoute,
 } from "@tanstack/react-router";
+import { LandingPage } from "./pages/LandingPage.jsx";
 import { HomePage } from "./pages/HomePage.jsx";
 import { MatchPage } from "./pages/MatchPage.jsx";
 
@@ -11,6 +12,12 @@ const rootRoute = createRootRoute();
 export const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
+  component: LandingPage,
+});
+
+export const assistantRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/assistant",
   component: HomePage,
 });
 
@@ -25,6 +32,10 @@ export const matchRoute = createRoute({
   }),
 });
 
-const routeTree = rootRoute.addChildren([indexRoute, matchRoute]);
+const routeTree = rootRoute.addChildren([
+  indexRoute,
+  assistantRoute,
+  matchRoute,
+]);
 
 export const router = createRouter({ routeTree });

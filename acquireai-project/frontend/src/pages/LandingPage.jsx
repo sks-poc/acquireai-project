@@ -1,14 +1,21 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
+import { HomePage, clearAssistantSessionState } from "./HomePage.jsx";
 
 const NAV_LINKS = [
-  "HOME",
-  "SPORTS",
-  "VIRTUALS",
-  "GAMES",
-  "PROMOS",
-  "PICK 11",
-  "APP",
-  "BLOG",
+  { label: "HOME", href: "/" },
+  { label: "SPORTS", href: "https://m.betking.com/en-ng/sports" },
+  {
+    label: "VIRTUALS",
+    href: "https://m.betking.com/en-ng/virtuals?ic_source=internal&ic_medium=productswitcher&ic_campaign=virtual",
+  },
+  { label: "GAMES", href: "https://m.betking.com/en-ng/casino" },
+  {
+    label: "PROMOS",
+    href: "https://m.betking.com/en-ng/promotions?ic_source=internal&ic_medium=productswitcher&ic_campaign=promos",
+  },
+  { label: "PICK 11", href: "https://m.betking.com/en-ng/pick-11/lobby" },
+  { label: "APP", href: "https://m.betking.com/l/mobile-app/" },
+  { label: "BLOG", href: "https://m.betking.com/en-ng/blog/" },
 ];
 
 const IMG_BASE = "https://imagedelivery.net/Vd-cIddpsfJ7XHHMXJuIbA";
@@ -58,16 +65,6 @@ const PLAY_CARDS = [
 
 const GRID_CARDS = PLAY_CARDS.slice(0, 6);
 const WIDE_CARDS = PLAY_CARDS.slice(6);
-
-function bettingAssistantHref() {
-  const raw = import.meta.env.BASE_URL || "/";
-  const base = raw.endsWith("/") ? raw.slice(0, -1) : raw;
-  return `${window.location.origin}${base}/assistant`;
-}
-
-function openBettingAssistant() {
-  window.open(bettingAssistantHref(), "_blank", "noopener,noreferrer");
-}
 
 function HeroZigzag() {
   return (
@@ -122,6 +119,21 @@ function HeroCoinsImage() {
 }
 
 export function LandingPage() {
+  const [chatOpen, setChatOpen] = useState(false);
+  /** Bumps on each open so embedded HomePage remounts with empty state. */
+  const [assistantMountKey, setAssistantMountKey] = useState(0);
+
+  function openAssistantPanel() {
+    clearAssistantSessionState();
+    setAssistantMountKey((k) => k + 1);
+    setChatOpen(true);
+  }
+
+  function closeAssistantPanel() {
+    clearAssistantSessionState();
+    setChatOpen(false);
+  }
+
   useEffect(() => {
     document.documentElement.classList.add("bk-landing-html");
     document.body.classList.add("bk-landing-active");
@@ -130,6 +142,26 @@ export function LandingPage() {
       document.body.classList.remove("bk-landing-active");
     };
   }, []);
+
+  useEffect(() => {
+    if (chatOpen) {
+      document.body.classList.add("bk-chat-panel-open");
+    } else {
+      document.body.classList.remove("bk-chat-panel-open");
+    }
+    return () => {
+      document.body.classList.remove("bk-chat-panel-open");
+    };
+  }, [chatOpen]);
+
+  useEffect(() => {
+    if (!chatOpen) return undefined;
+    function onKeyDown(e) {
+      if (e.key === "Escape") closeAssistantPanel();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [chatOpen]);
 
   return (
     <div className="bk-page">
@@ -156,16 +188,20 @@ export function LandingPage() {
 
           <nav className="bk-nav" aria-label="Main">
             <div className="bk-nav__scroll">
-              {NAV_LINKS.map((label) => (
-                <a
-                  key={label}
-                  className="bk-nav__link"
-                  href="/"
-                  onClick={(e) => e.preventDefault()}
-                >
-                  {label}
-                </a>
-              ))}
+              {NAV_LINKS.map(({ label, href }) => {
+                const isExternal = href.startsWith("http");
+                return (
+                  <a
+                    key={label}
+                    className="bk-nav__link"
+                    href={href}
+                    target={isExternal ? "_blank" : undefined}
+                    rel={isExternal ? "noopener noreferrer" : undefined}
+                  >
+                    {label}
+                  </a>
+                );
+              })}
             </div>
           </nav>
 
@@ -248,13 +284,67 @@ export function LandingPage() {
         <button
           type="button"
           className="bk-fab"
-          onClick={openBettingAssistant}
-          aria-label="Open Betting Assistant in a new window"
+          onClick={openAssistantPanel}
+          aria-haspopup="dialog"
+          aria-expanded={chatOpen}
+          aria-controls="betting-assistant-panel"
+          aria-label="Open Betting Assistant"
         >
           <FabChatIcon />
           <span className="bk-fab__label">Betting Assistant</span>
         </button>
       </div>
+
+      {chatOpen && (
+        <div
+          className="bk-chat-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="betting-assistant-panel-title"
+          id="betting-assistant-panel"
+        >
+          <button
+            type="button"
+            className="bk-chat-overlay__backdrop"
+            tabIndex={-1}
+            aria-label="Close Betting Assistant"
+            onClick={closeAssistantPanel}
+          />
+          <div className="bk-chat-sheet">
+            <div className="bk-chat-sheet__top">
+              <div className="bk-chat-sheet__top-spacer" aria-hidden />
+              <div className="bk-chat-sheet__handle" aria-hidden />
+              <div className="bk-chat-sheet__top-actions">
+                <button
+                  type="button"
+                  className="bk-chat-sheet__close"
+                  onClick={closeAssistantPanel}
+                  aria-label="Close Betting Assistant"
+                >
+                  <svg
+                    className="bk-chat-sheet__close-icon"
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    aria-hidden
+                  >
+                    <path
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      d="M7 7l10 10M17 7L7 17"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div className="bk-chat-sheet__scroll">
+              <HomePage key={assistantMountKey} embedded />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

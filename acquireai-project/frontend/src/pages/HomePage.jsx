@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 
 function toText(value) {
@@ -20,6 +20,13 @@ function toStringList(value) {
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8080";
 const HOME_STATE_KEY = "acquireai.home.state.v1";
+
+/** Clears persisted assistant query / results (shared with /assistant). */
+export function clearAssistantSessionState() {
+  try {
+    sessionStorage.removeItem(HOME_STATE_KEY);
+  } catch (_) {}
+}
 
 const KNOWN_MATCHES = [
   { id: "ars-che-demo", teams: ["arsenal", "chelsea"] },
@@ -48,17 +55,55 @@ function sleep(ms) {
   });
 }
 
-export function HomePage() {
+const SCROLL_TOP_THRESHOLD_PX = 200;
+
+export function HomePage({ embedded = false } = {}) {
   const navigate = useNavigate();
+  const mainRef = useRef(null);
+  const [showScrollTop, setShowScrollTop] = useState(false);
 
   useEffect(() => {
+    if (embedded) return undefined;
     document.body.classList.remove("bk-landing-active");
     document.body.classList.add("assistant-view");
     document.documentElement.classList.remove("bk-landing-html");
     return () => {
       document.body.classList.remove("assistant-view");
     };
-  }, []);
+  }, [embedded]);
+
+  useEffect(() => {
+    const main = mainRef.current;
+    if (!main) return undefined;
+
+    const scrollEl = embedded
+      ? main.closest(".bk-chat-sheet__scroll")
+      : null;
+    if (embedded && !scrollEl) return undefined;
+
+    function onScroll() {
+      const y = scrollEl ? scrollEl.scrollTop : window.scrollY;
+      setShowScrollTop(y > SCROLL_TOP_THRESHOLD_PX);
+    }
+
+    const target = scrollEl ?? window;
+    target.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => target.removeEventListener("scroll", onScroll);
+  }, [embedded]);
+
+  function scrollAssistantToTop() {
+    const main = mainRef.current;
+    const scrollEl = embedded
+      ? main?.closest(".bk-chat-sheet__scroll")
+      : null;
+    if (scrollEl) {
+      scrollEl.scrollTo({ top: 0, behavior: "smooth" });
+    } else {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }
+
   const [query, setQuery] = useState(() => {
     try {
       const saved = JSON.parse(sessionStorage.getItem(HOME_STATE_KEY) || "{}");
@@ -268,17 +313,26 @@ export function HomePage() {
   }
 
   return (
-    <main className="page page--assistant">
-      <header className="assistant-bar">
-        <h1 className="assistant-bar__title">Betting Assistant</h1>
-        <Link to="/" className="assistant-bar__home">
-          Home
-        </Link>
-      </header>
-
+    <>
+    <main
+      ref={mainRef}
+      className={
+        embedded ? "page page--assistant page--assistant-embedded" : "page page--assistant"
+      }
+    >
       <section className="hero hero--assistant">
-        <p className="eyebrow">AcquireAI</p>
-        <h2 className="hero--assistant__heading">
+        <div className="assistant-hero-top">
+          <p className="eyebrow">AcquireAI</p>
+          {!embedded && (
+            <Link to="/" className="assistant-home-link">
+              Home
+            </Link>
+          )}
+        </div>
+        <h2
+          className="hero--assistant__heading"
+          id="betting-assistant-panel-title"
+        >
           Natural language betting recommendations
         </h2>
         <p className="subtitle">
@@ -480,5 +534,31 @@ export function HomePage() {
           );
         })()}
     </main>
+    {showScrollTop && (
+      <button
+        type="button"
+        className="assistant-scroll-top"
+        onClick={scrollAssistantToTop}
+        aria-label="Back to top of assistant"
+      >
+        <svg
+          className="assistant-scroll-top__icon"
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          aria-hidden
+        >
+          <path
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M12 19V5M5 12l7-7 7 7"
+          />
+        </svg>
+      </button>
+    )}
+    </>
   );
 }

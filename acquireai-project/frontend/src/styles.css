@@ -341,6 +341,7 @@ button:disabled {
 .rec-banner {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   background: #fff9e6;
   border: 1px solid #ffe080;
@@ -359,6 +360,32 @@ button:disabled {
   font-weight: 400;
   opacity: 0.8;
 }
+.rec-actions {
+  margin-left: auto;
+  display: inline-flex;
+  gap: 8px;
+}
+.rec-action-btn {
+  border: 1px solid #d7b24d;
+  background: #f5be1c;
+  color: #2b1f00;
+  font-size: 12px;
+  font-weight: 800;
+  border-radius: 10px;
+  padding: 8px 12px;
+  line-height: 1;
+}
+.rec-action-btn:hover {
+  background: #edb100;
+}
+.rec-action-btn-secondary {
+  background: #fff;
+  color: #6f5700;
+  border-color: #e5cf86;
+}
+.rec-action-btn-secondary:hover {
+  background: #fff7dc;
+}
 
 /* Tabs */
 .tabs {
@@ -371,6 +398,55 @@ button:disabled {
 }
 .tabs::-webkit-scrollbar {
   display: none;
+}
+
+.rec-tabs-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.rec-tabs-scroll {
+  margin-bottom: 0;
+  scroll-behavior: smooth;
+  cursor: grab;
+  user-select: none;
+}
+
+.rec-tabs-scroll .tab-btn {
+  max-width: none;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.rec-tabs-scroll.is-dragging {
+  cursor: grabbing;
+}
+
+.rec-tabs-nav {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  border: 1px solid #d7dfed;
+  background: #fff;
+  color: #2c3a55;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rec-tabs-nav:hover:not(:disabled) {
+  background: #f3f7ff;
+}
+
+.rec-tabs-nav:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .tab-btn {
@@ -390,6 +466,12 @@ button:disabled {
 .tab-btn:hover {
   color: #14213d;
   background: none;
+}
+
+@media (max-width: 720px) {
+  .rec-tabs-row {
+    gap: 6px;
+  }
 }
 .tab-active {
   color: #1f3bff !important;
@@ -471,27 +553,48 @@ button:disabled {
 .outcome-selected {
   background: #1f3bff !important;
   border-color: #1f3bff !important;
+  box-shadow: 0 0 0 3px rgba(31, 59, 255, 0.28), 0 10px 20px rgba(31, 59, 255, 0.25);
+  transform: translateY(-1px);
 }
 .outcome-selected .outcome-label {
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(255, 255, 255, 0.94);
+  font-weight: 700;
 }
 .outcome-selected .outcome-price {
   color: #fff;
+  font-size: 16px;
 }
 .outcome-check {
   position: absolute;
-  top: 6px;
-  right: 8px;
-  font-size: 10px;
+  top: 5px;
+  right: 6px;
+  font-size: 11px;
   font-weight: 800;
-  color: #fff;
-  background: rgba(255, 255, 255, 0.25);
+  color: #17306d;
+  background: #fff;
   border-radius: 999px;
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.outcome-recommended.outcome-selected {
+  background: #fff0b8 !important;
+  border-color: #ffb200 !important;
+  box-shadow: 0 0 0 3px rgba(255, 178, 0, 0.35), 0 10px 20px rgba(31, 59, 255, 0.25);
+}
+.outcome-recommended.outcome-selected .outcome-label {
+  color: #3f2a00 !important;
+  font-weight: 800;
+}
+.outcome-recommended.outcome-selected .outcome-price {
+  color: #8a5400 !important;
+}
+.outcome-recommended.outcome-selected .outcome-check {
+  background: #8a5400;
+  color: #fff;
 }
 
 /* Betslip drawer */

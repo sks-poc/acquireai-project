@@ -153,6 +153,7 @@ export function HomePage() {
     if (directEventId) {
       return {
         matchId: directEventId,
+        eventId: directEventId,
         market: toText(odd.market || odd.marketKey || odd.marketName || ""),
         outcome: toText(odd.selection || odd.selectionName || odd.outcome || ""),
       };
@@ -166,31 +167,50 @@ export function HomePage() {
     const outcome = toText(
       odd.selection || odd.selectionName || odd.outcome || "",
     );
-    return { matchId, market, outcome };
+    return { matchId, eventId: matchId, market, outcome };
   }
 
   // Collect all recs for the primary match from oddsUsed entries
   function primaryMatchCta() {
     if (!response?.oddsUsed?.length) return null;
-    let matchId = null;
+    let firstMatchId = null;
     const recs = [];
+
     for (const odd of response.oddsUsed) {
-      if (typeof odd === "string") continue;
-      let mid = null;
-      if (odd.event || odd.eventId) {
-        mid = String(odd.event || odd.eventId);
-      } else {
-        const info = viewOnBoard(odd);
-        mid = info?.matchId ?? null;
-      }
-      if (!mid) continue;
-      if (!matchId) matchId = mid;
-      if (mid === matchId) {
-        recs.push({ market: odd.market || "", outcome: odd.selection || "" });
+      if (!odd || typeof odd === "string") continue;
+
+      const eventId = toText(odd.event || odd.eventId || "").trim();
+      const market = toText(odd.market || odd.marketKey || odd.marketName || "");
+      const outcome = toText(
+        odd.selection || odd.selectionName || odd.outcome || odd.pick || "",
+      );
+      if (!outcome) continue;
+
+      // Keep every pick from oddsUsed even when event resolution is partial.
+      recs.push({
+        eventId,
+        market,
+        outcome,
+        selection: outcome,
+      });
+
+      if (!firstMatchId) {
+        if (eventId) {
+          firstMatchId = eventId;
+        } else {
+          const info = viewOnBoard(odd);
+          if (info?.matchId) firstMatchId = info.matchId;
+        }
       }
     }
-    if (!matchId || !recs.length) return null;
-    return { matchId, recs };
+
+    if (!recs.length) return null;
+    if (!firstMatchId) {
+      firstMatchId = recs[0]?.eventId || null;
+    }
+    if (!firstMatchId) return null;
+
+    return { matchId: firstMatchId, recs };
   }
 
   return (
@@ -292,7 +312,11 @@ export function HomePage() {
                       navigate({
                         to: "/match/$id",
                         params: { id: cta.matchId },
-                        search: { recs: JSON.stringify(cta.recs) },
+                        search: {
+                          recs: JSON.stringify(cta.recs),
+                          market: cta.recs[0]?.market || "",
+                          outcome: cta.recs[0]?.outcome || "",
+                        },
                       })
                     }
                   >

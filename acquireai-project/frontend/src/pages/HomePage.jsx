@@ -42,6 +42,12 @@ const examples = [
   "Give me a guaranteed winner tonight",
 ];
 
+function sleep(ms) {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
 export function HomePage() {
   const navigate = useNavigate();
   const [query, setQuery] = useState(() => {
@@ -70,6 +76,7 @@ export function HomePage() {
     }
   });
   const [error, setError] = useState(null);
+  const [loadingStageText, setLoadingStageText] = useState("");
 
   useEffect(() => {
     try {
@@ -85,20 +92,58 @@ export function HomePage() {
     setLoading(true);
     setError(null);
     setResponse(null);
+    setLoadingStageText("Starting analysis...");
 
     try {
-      const res = await fetch(`${API_BASE}/api/query`, {
+      const startRes = await fetch(`${API_BASE}/api/query/start`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query, context: { riskProfile } }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Request failed");
-      setResponse(normalizeResponse(data));
+
+      const startData = await startRes.json();
+      if (!startRes.ok || !startData?.jobId) {
+        throw new Error(startData.error || "Failed to start recommendation job");
+      }
+
+      const jobId = startData.jobId;
+      const pollStartedAt = Date.now();
+      const timeoutMs = 120000;
+
+      while (true) {
+        const statusRes = await fetch(
+          `${API_BASE}/api/query/status/${encodeURIComponent(jobId)}`,
+        );
+        const statusData = await statusRes.json();
+
+        if (!statusRes.ok) {
+          throw new Error(statusData.error || "Failed to read recommendation status");
+        }
+
+        if (statusData.message) {
+          setLoadingStageText(statusData.message);
+        }
+
+        if (statusData.status === "completed") {
+          setResponse(normalizeResponse(statusData.result));
+          break;
+        }
+
+        if (statusData.status === "failed") {
+          throw new Error(statusData.error || "Recommendation job failed");
+        }
+
+        if (Date.now() - pollStartedAt > timeoutMs) {
+          throw new Error("Recommendation is taking too long. Please try again.");
+        }
+
+        await sleep(700);
+      }
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
+      setLoadingStageText("");
     }
   }
 
@@ -251,9 +296,14 @@ export function HomePage() {
               disabled={loading || !query.trim()}
               type="submit"
             >
-              {loading ? "Thinking..." : "Get recommendation"}
+              {loading ? "Working..." : "Get recommendation"}
             </button>
           </div>
+          {loading && (
+            <p className="loading-status" aria-live="polite">
+              {loadingStageText}
+            </p>
+          )}
         </form>
       </section>
 

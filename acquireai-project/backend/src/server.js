@@ -1,6 +1,7 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
+import { randomUUID } from "crypto";
 import { fileURLToPath } from "url";
 import path from "path";
 import fs from "fs";
@@ -54,6 +55,102 @@ function inferTabFromMarketName(name) {
   if (market.includes("player") || market.includes("scorer")) return "player";
   if (market.includes("double") || market.includes("draw no bet") || market.includes("handicap")) return "combo";
   return "popular";
+}
+
+const QUERY_JOB_TTL_MS = toPositiveInt(process.env.QUERY_JOB_TTL_MS, 5 * 60 * 1000);
+const queryJobs = new Map();
+
+function cleanupQueryJobs() {
+  const now = Date.now();
+  for (const [jobId, job] of queryJobs.entries()) {
+    if (job.expiresAt <= now) {
+      queryJobs.delete(jobId);
+    }
+  }
+}
+
+function createQueryJob({ query, context }) {
+  cleanupQueryJobs();
+  const jobId = randomUUID();
+  const now = Date.now();
+  queryJobs.set(jobId, {
+    id: jobId,
+    query,
+    context,
+    status: "queued",
+    stage: "queued",
+    message: "Queued",
+    createdAt: now,
+    updatedAt: now,
+    expiresAt: now + QUERY_JOB_TTL_MS,
+    result: null,
+    error: null,
+  });
+  return jobId;
+}
+
+function updateQueryJob(jobId, patch) {
+  const job = queryJobs.get(jobId);
+  if (!job) return;
+  const now = Date.now();
+  Object.assign(job, patch, {
+    updatedAt: now,
+    expiresAt: now + QUERY_JOB_TTL_MS,
+  });
+}
+
+function validateQueryInput(query) {
+  if (!query || typeof query !== "string" || query.trim().length < 3) {
+    return "Request body must include a non-empty 'query' string.";
+  }
+  if (query.length > 500) {
+    return "Query must be 500 characters or fewer.";
+  }
+  if (/[{}<>]|query\s*\{|fragment\s+\w+|__schema/.test(query)) {
+    return "Query must be a natural language betting question.";
+  }
+  return null;
+}
+
+async function runRecommendationPipeline({ query, context = {}, onStage }) {
+  const startedAt = Date.now();
+
+  onStage?.("fetching_data", "Fetching live odds and event data");
+  const oddsContext = await buildOddsContext(query);
+
+  onStage?.("building_prompt", "Preparing model context");
+  const llmInput = buildLlmInput({
+    userQuery: query,
+    userContext: context,
+    oddsContext,
+  });
+
+  onStage?.("generating_recommendation", "Generating recommendation");
+  const result = await generateRecommendation({
+    userQuery: query,
+    userContext: context,
+    oddsContext,
+  });
+
+  onStage?.("finalizing", "Finalizing response");
+  const payload = {
+    query,
+    transcript: null,
+    ...result,
+    meta: {
+      model: process.env.LLM_MODEL_NAME || "gpt-4.1-mini",
+      oddsSource: oddsContext.source,
+      oddsEventsProvided: oddsContext.events.length,
+      latencyMs: Date.now() - startedAt,
+    },
+    debug: {
+      llmInput,
+      llmOutput: result,
+    },
+  };
+
+  logInteraction({ query, context, response: payload });
+  return payload;
 }
 
 const LIVE_MATCH_CACHE_TTL_MS = toPositiveInt(
@@ -281,61 +378,87 @@ app.get("/api/odds/snapshot", async (req, res) => {
   }
 });
 
-app.post("/api/query", async (req, res) => {
-  const startedAt = Date.now();
+app.post("/api/query/start", async (req, res) => {
+  const { query, context = {} } = req.body || {};
+  const validationError = validateQueryInput(query);
+  if (validationError) {
+    return res.status(400).json({ error: validationError });
+  }
 
+  const jobId = createQueryJob({ query, context });
+  res.status(202).json({ jobId, status: "queued" });
+
+  (async () => {
+    updateQueryJob(jobId, {
+      status: "running",
+      stage: "starting",
+      message: "Starting analysis",
+    });
+
+    try {
+      const payload = await runRecommendationPipeline({
+        query,
+        context,
+        onStage: (stage, message) => {
+          updateQueryJob(jobId, {
+            status: "running",
+            stage,
+            message,
+          });
+        },
+      });
+
+      updateQueryJob(jobId, {
+        status: "completed",
+        stage: "completed",
+        message: "Completed",
+        result: payload,
+        error: null,
+      });
+    } catch (error) {
+      console.error(error);
+      const fallback = fallbackRecommendation(error.message);
+      logInteraction({ query, context, error: error.message, response: fallback });
+
+      updateQueryJob(jobId, {
+        status: "failed",
+        stage: "failed",
+        message: "Failed to generate recommendation",
+        error: error.message,
+        result: null,
+      });
+    }
+  })();
+});
+
+app.get("/api/query/status/:jobId", (req, res) => {
+  cleanupQueryJobs();
+  const job = queryJobs.get(req.params.jobId);
+  if (!job) {
+    return res.status(404).json({ error: "Job not found or expired" });
+  }
+
+  return res.json({
+    jobId: job.id,
+    status: job.status,
+    stage: job.stage,
+    message: job.message,
+    result: job.result,
+    error: job.error,
+    createdAt: job.createdAt,
+    updatedAt: job.updatedAt,
+  });
+});
+
+app.post("/api/query", async (req, res) => {
   try {
     const { query, context = {} } = req.body || {};
-
-    if (!query || typeof query !== "string" || query.trim().length < 3) {
-      return res
-        .status(400)
-        .json({
-          error: "Request body must include a non-empty 'query' string.",
-        });
-    }
-    if (query.length > 500) {
-      return res
-        .status(400)
-        .json({ error: "Query must be 500 characters or fewer." });
-    }
-    // Block obviously non-natural-language input (code, GraphQL, JSON, brackets)
-    if (/[{}<>]|query\s*\{|fragment\s+\w+|__schema/.test(query)) {
-      return res
-        .status(400)
-        .json({ error: "Query must be a natural language betting question." });
+    const validationError = validateQueryInput(query);
+    if (validationError) {
+      return res.status(400).json({ error: validationError });
     }
 
-    const oddsContext = await buildOddsContext(query);
-    const llmInput = buildLlmInput({
-      userQuery: query,
-      userContext: context,
-      oddsContext,
-    });
-
-    const result = await generateRecommendation({
-      userQuery: query,
-      userContext: context,
-      oddsContext,
-    });
-
-    const payload = {
-      query,
-      transcript: null,
-      ...result,
-      meta: {
-        model: process.env.LLM_MODEL_NAME || "gpt-4.1-mini",
-        oddsSource: oddsContext.source,
-        oddsEventsProvided: oddsContext.events.length,
-        latencyMs: Date.now() - startedAt,
-      },
-      debug: {
-        llmInput,
-        llmOutput: result,
-      },
-    };
-
-    logInteraction({ query, context, response: payload });
+    const payload = await runRecommendationPipeline({ query, context });
     res.json(payload);
   } catch (error) {
     console.error(error);

@@ -6,4 +6,4 @@ backend/logs/*.jsonl
 .DS_Store
 dist
 coverage
-.vs
+/.vs

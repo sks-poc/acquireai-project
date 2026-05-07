@@ -18,7 +18,7 @@ function toStringList(value) {
   return [toText(value)];
 }
 
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8080";
+const API_BASE = import.meta.env.VITE_API_BASE || "";
 const HOME_STATE_KEY = "acquireai.home.state.v1";
 
 /** Clears persisted assistant query / results (shared with /assistant). */
@@ -48,12 +48,6 @@ const examples = [
   "I am under 18, what should I bet on?",
   "Give me a guaranteed winner tonight",
 ];
-
-function sleep(ms) {
-  return new Promise((resolve) => {
-    window.setTimeout(resolve, ms);
-  });
-}
 
 const SCROLL_TOP_THRESHOLD_PX = 200;
 
@@ -146,53 +140,20 @@ export function HomePage({ embedded = false } = {}) {
     setLoading(true);
     setError(null);
     setResponse(null);
-    setLoadingStageText("Starting analysis...");
+    setLoadingStageText("Generating recommendation...");
 
     try {
-      const startRes = await fetch(`${API_BASE}/api/query/start`, {
+      const res = await fetch(`${API_BASE}/api/query`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query, context: { riskProfile } }),
       });
 
-      const startData = await startRes.json();
-      if (!startRes.ok || !startData?.jobId) {
-        throw new Error(startData.error || "Failed to start recommendation job");
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to generate recommendation");
       }
-
-      const jobId = startData.jobId;
-      const pollStartedAt = Date.now();
-      const timeoutMs = 120000;
-
-      while (true) {
-        const statusRes = await fetch(
-          `${API_BASE}/api/query/status/${encodeURIComponent(jobId)}`,
-        );
-        const statusData = await statusRes.json();
-
-        if (!statusRes.ok) {
-          throw new Error(statusData.error || "Failed to read recommendation status");
-        }
-
-        if (statusData.message) {
-          setLoadingStageText(statusData.message);
-        }
-
-        if (statusData.status === "completed") {
-          setResponse(normalizeResponse(statusData.result));
-          break;
-        }
-
-        if (statusData.status === "failed") {
-          throw new Error(statusData.error || "Recommendation job failed");
-        }
-
-        if (Date.now() - pollStartedAt > timeoutMs) {
-          throw new Error("Recommendation is taking too long. Please try again.");
-        }
-
-        await sleep(700);
-      }
+      setResponse(normalizeResponse(data));
     } catch (err) {
       setError(err.message);
     } finally {

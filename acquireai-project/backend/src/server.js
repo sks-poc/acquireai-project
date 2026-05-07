@@ -474,8 +474,10 @@ app.post("/api/query", async (req, res) => {
   }
 });
 
-app.listen(port, () => {
-  console.log(`AcquireAI backend running on http://localhost:${port}`);
-});
+if (!process.env.VERCEL) {
+  app.listen(port, () => {
+    console.log(`AcquireAI backend running on http://localhost:${port}`);
+  });
+}
 
 export default app;

@@ -7,3 +7,5 @@ backend/logs/*.jsonl
 dist
 coverage
 .vs
+.vercel
+.env*.local
